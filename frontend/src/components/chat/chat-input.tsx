@@ -39,7 +39,6 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   return (
     <div className="w-full max-w-[48rem] mx-auto px-4 pb-4 md:pb-6">
       <div className="relative flex items-end rounded-3xl bg-[#2f2f2f] border border-[#424242]">
-        {/* Left button */}
         <div className="flex items-center justify-center shrink-0 pl-1 pb-2.5">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -56,7 +55,6 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           </Tooltip>
         </div>
 
-        {/* Textarea */}
         <textarea
           ref={textareaRef}
           value={input}
@@ -69,7 +67,6 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           className="flex-1 resize-none bg-transparent text-[16px] text-white placeholder-[#8e8e8e] py-3 pr-2 focus:outline-none disabled:opacity-50 min-h-[28px] max-h-[200px] leading-[1.6]"
         />
 
-        {/* Right button */}
         <div className="flex items-center justify-center shrink-0 pr-2 pb-2.5">
           {input.trim() ? (
             <Tooltip>
