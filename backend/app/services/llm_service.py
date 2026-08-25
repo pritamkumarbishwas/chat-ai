@@ -1,7 +1,5 @@
 import logging
-from typing import Any
-from openai import AsyncOpenAI, APIError, RateLimitError, APITimeoutError
-import httpx
+from groq import Groq, APIError, RateLimitError, APITimeoutError
 
 from app.schemas.chat import Message
 
@@ -19,7 +17,6 @@ MOCK_RESPONSES: dict[str, str] = {
 }
 
 MOCK_TOPIC_KEYWORDS: list[str] = list(MOCK_RESPONSES.keys())
-
 CODE_KEYWORDS: frozenset[str] = frozenset(["code", "program", "function", "debug", "api", "endpoint"])
 WRITE_KEYWORDS: frozenset[str] = frozenset(["write", "essay", "email", "letter", "draft", "compose"])
 
@@ -79,30 +76,48 @@ class LLMService:
         self.provider = provider
         self.api_key = api_key
         self.model = model
-        self._openai_client: AsyncOpenAI | None = None
-        self._http_client: httpx.AsyncClient | None = None
+        self._groq_client: Groq | None = None
 
-    def _get_openai_client(self) -> AsyncOpenAI:
-        if self._openai_client is None:
-            self._openai_client = AsyncOpenAI(api_key=self.api_key)
-        return self._openai_client
-
-    def _get_http_client(self) -> httpx.AsyncClient:
-        if self._http_client is None:
-            self._http_client = httpx.AsyncClient(timeout=30.0)
-        return self._http_client
+    def _get_groq_client(self) -> Groq:
+        if self._groq_client is None:
+            self._groq_client = Groq(api_key=self.api_key)
+        return self._groq_client
 
     async def generate(self, message: str, history: list[Message]) -> str:
         if self.provider == "mock":
             return generate_mock_response(message, history)
-        if self.provider == "openai":
-            return await self._generate_openai(message, history)
         if self.provider == "groq":
             return await self._generate_groq(message, history)
+        if self.provider == "openai":
+            return await self._generate_openai(message, history)
         raise ValueError(f"Unknown LLM provider: {self.provider}")
 
+    async def _generate_groq(self, message: str, history: list[Message]) -> str:
+        client = self._get_groq_client()
+        messages = _build_messages(message, history)
+
+        try:
+            response = client.chat.completions.create(
+                model=self.model or "openai/gpt-oss-20b",
+                messages=messages,
+                max_tokens=2048,
+                temperature=0.7,
+            )
+            return response.choices[0].message.content or ""
+        except RateLimitError:
+            logger.error("Groq rate limit exceeded")
+            raise
+        except APITimeoutError:
+            logger.error("Groq request timed out")
+            raise
+        except APIError as e:
+            logger.error(f"Groq API error: {e}")
+            raise
+
     async def _generate_openai(self, message: str, history: list[Message]) -> str:
-        client = self._get_openai_client()
+        from openai import AsyncOpenAI, APIError as OpenAIError, RateLimitError as OpenAIRateLimitError, APITimeoutError as OpenAITimeoutError
+
+        client = AsyncOpenAI(api_key=self.api_key)
         messages = _build_messages(message, history)
 
         try:
@@ -113,48 +128,15 @@ class LLMService:
                 temperature=0.7,
             )
             return response.choices[0].message.content or ""
-        except RateLimitError:
+        except OpenAIRateLimitError:
             logger.error("OpenAI rate limit exceeded")
             raise
-        except APITimeoutError:
+        except OpenAITimeoutError:
             logger.error("OpenAI request timed out")
             raise
-        except APIError as e:
+        except OpenAIError as e:
             logger.error(f"OpenAI API error: {e}")
             raise
 
-    async def _generate_groq(self, message: str, history: list[Message]) -> str:
-        client = self._get_http_client()
-        messages = _build_messages(message, history)
-
-        try:
-            response = await client.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": self.model or "llama3-70b-8192",
-                    "messages": messages,
-                    "max_tokens": 2048,
-                    "temperature": 0.7,
-                },
-            )
-            response.raise_for_status()
-            data: dict[str, Any] = response.json()
-            return data["choices"][0]["message"]["content"]
-        except httpx.HTTPStatusError as e:
-            logger.error(f"Groq HTTP error: {e.response.status_code}")
-            raise
-        except httpx.TimeoutException:
-            logger.error("Groq request timed out")
-            raise
-
     async def close(self) -> None:
-        if self._openai_client:
-            await self._openai_client.close()
-            self._openai_client = None
-        if self._http_client:
-            await self._http_client.aclose()
-            self._http_client = None
+        self._groq_client = None

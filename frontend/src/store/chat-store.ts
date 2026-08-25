@@ -2,7 +2,7 @@ import { useState, useCallback } from "react"
 import type { Conversation, Message } from "@/types/chat"
 
 function generateId(): string {
-  return Math.random().toString(36).substring(2, 15)
+  return crypto.randomUUID()
 }
 
 function generateTitle(content: string): string {

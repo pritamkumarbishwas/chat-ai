@@ -1,6 +1,5 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 from enum import Enum
-import uuid
 
 
 class MessageRole(str, Enum):
@@ -19,24 +18,13 @@ class ChatRequest(BaseModel):
         ..., min_length=1, max_length=32000, description="User message"
     )
     conversation_id: str | None = Field(
-        None, description="Optional conversation ID (UUID v4)"
+        None, description="Optional conversation ID"
     )
     history: list[Message] = Field(
         default_factory=list,
         description="Chat history (max 50 messages)",
         max_length=50,
     )
-
-    @field_validator("conversation_id")
-    @classmethod
-    def validate_conversation_id(cls, v: str | None) -> str | None:
-        if v is None:
-            return v
-        try:
-            uuid_obj = uuid.UUID(v, version=4)
-            return str(uuid_obj)
-        except ValueError:
-            raise ValueError(f"Invalid conversation_id: must be a valid UUID v4, got '{v}'")
 
 
 class ChatResponse(BaseModel):
