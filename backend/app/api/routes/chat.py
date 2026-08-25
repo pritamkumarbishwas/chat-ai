@@ -1,8 +1,7 @@
 import uuid
 import logging
 from fastapi import APIRouter, HTTPException, Depends
-from openai import RateLimitError, APITimeoutError, APIError
-import httpx
+from groq import APIError as GroqAPIError, RateLimitError as GroqRateLimitError, APITimeoutError as GroqTimeoutError
 
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.services.llm_service import LLMService
@@ -38,29 +37,23 @@ async def chat(
             message=request.message,
             history=request.history,
         )
-    except RateLimitError:
-        logger.warning("Rate limit exceeded for LLM provider")
+    except GroqRateLimitError:
+        logger.warning("Groq rate limit exceeded")
         raise HTTPException(
             status_code=429,
             detail="Rate limit exceeded. Please try again later.",
         )
-    except APITimeoutError:
-        logger.warning("LLM request timed out")
+    except GroqTimeoutError:
+        logger.warning("Groq request timed out")
         raise HTTPException(
             status_code=504,
             detail="Request timed out. Please try again.",
         )
-    except APIError as e:
-        logger.error(f"OpenAI API error: {e}")
+    except GroqAPIError as e:
+        logger.error(f"Groq API error: {e}")
         raise HTTPException(
             status_code=502,
-            detail="AI service returned an error. Please try again.",
-        )
-    except httpx.HTTPStatusError as e:
-        logger.error(f"Groq HTTP error: {e.response.status_code}")
-        raise HTTPException(
-            status_code=502,
-            detail="AI service returned an error. Please try again.",
+            detail=f"AI service error: {str(e)}",
         )
     except ValueError as e:
         logger.error(f"Invalid LLM provider: {e}")
