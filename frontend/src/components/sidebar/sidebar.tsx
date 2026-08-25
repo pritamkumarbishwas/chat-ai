@@ -2,7 +2,6 @@ import { useState, useMemo } from "react"
 import {
   MessageSquare,
   Search,
-  Plus,
   MoreHorizontal,
   Pencil,
   Trash2,
@@ -83,6 +82,7 @@ export function Sidebar({
   onNewChat,
 }: SidebarProps) {
   const [search, setSearch] = useState("")
+  const [showSearch, setShowSearch] = useState(false)
 
   const filteredConversations = useMemo(() => {
     if (!search.trim()) return conversations
@@ -95,42 +95,46 @@ export function Sidebar({
     [filteredConversations]
   )
 
+  const handleToggleSearch = () => {
+    setShowSearch((prev) => {
+      if (prev) setSearch("")
+      return !prev
+    })
+  }
+
   return (
     <aside className="flex flex-col h-full w-[260px] bg-[#171717]">
       {/* Header */}
       <div className="flex items-center justify-between p-2 pr-3">
+        <Button
+          variant="ghost"
+          onClick={onNewChat}
+          className="gap-2 h-9 px-3 text-muted-foreground hover:text-foreground hover:bg-[#2f2f2f] shrink-0"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+          </svg>
+          <span className="text-[13px]">New chat</span>
+        </Button>
+
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              onClick={onNewChat}
-              className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-hover shrink-0"
+              onClick={handleToggleSearch}
+              className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-[#2f2f2f]"
             >
-              <Plus className="h-5 w-5" />
+              <Search className="h-5 w-5" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="bottom">New chat</TooltipContent>
+          <TooltipContent side="bottom">Search chats</TooltipContent>
         </Tooltip>
-
-        <div className="flex items-center gap-0.5">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-hover"
-              >
-                <Search className="h-5 w-5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Search chats</TooltipContent>
-          </Tooltip>
-        </div>
       </div>
 
-      {/* Search input (shown when searching) */}
-      {search && (
+      {/* Search input */}
+      {showSearch && (
         <div className="px-3 pb-2">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />

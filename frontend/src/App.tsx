@@ -1,6 +1,7 @@
 import { useCallback } from "react"
 import { Sidebar } from "@/components/sidebar"
 import { ChatArea } from "@/components/chat"
+import { Header } from "@/components/layout"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { useSendMessageMutation } from "@/store/api/chat-api"
 import { selectConversations, selectActiveConversationId, selectActiveConversation, selectSidebarOpen } from "@/store/selectors"
@@ -121,25 +122,10 @@ export default function App() {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Header */}
-        <header className="flex items-center justify-between px-3 py-2 border-b border-[#424242] shrink-0">
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => dispatch(openSidebar())}
-              className="md:hidden p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-[#2f2f2f]"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect width="18" height="18" x="3" y="3" rx="2" />
-                <path d="M9 3v18" />
-              </svg>
-            </button>
-            {activeConversation && (
-              <span className="hidden lg:inline text-[13px] text-muted-foreground truncate max-w-[300px]">
-                {activeConversation.title}
-              </span>
-            )}
-          </div>
-        </header>
+        <Header
+          activeConversation={activeConversation}
+          onOpenSidebar={() => dispatch(openSidebar())}
+        />
 
         <ChatArea
           conversation={activeConversation}

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react"
-import { Sparkles } from "lucide-react"
+import { Code, PenLine, Lightbulb, BarChart3 } from "lucide-react"
 import { ChatMessage } from "./chat-message"
 import { ChatInput } from "./chat-input"
 import { ThinkingIndicator } from "./thinking-indicator"
@@ -12,10 +12,26 @@ interface ChatAreaProps {
 }
 
 const SUGGESTIONS = [
-  "Explain quantum computing",
-  "Write a Python function",
-  "Help me debug my code",
-  "Create a marketing plan",
+  {
+    icon: Code,
+    label: "Code",
+    text: "Write a Python function to sort a list",
+  },
+  {
+    icon: PenLine,
+    label: "Write",
+    text: "Help me write a professional email",
+  },
+  {
+    icon: Lightbulb,
+    label: "Explain",
+    text: "Explain how neural networks work",
+  },
+  {
+    icon: BarChart3,
+    label: "Analyze",
+    text: "Analyze this data and find trends",
+  },
 ] as const
 
 export function ChatArea({ conversation, onSend, isLoading }: ChatAreaProps) {
@@ -33,29 +49,37 @@ export function ChatArea({ conversation, onSend, isLoading }: ChatAreaProps) {
       <div className="flex-1 overflow-y-auto">
         {isEmpty ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
-            <div className="flex items-center gap-2 mb-6">
-              <Sparkles className="h-10 w-10 text-primary" />
+            <div className="mb-8">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#10a37f] to-[#0d8c6d] mx-auto mb-5">
+                <svg viewBox="0 0 24 24" fill="currentColor" className="h-7 w-7 text-white">
+                  <path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729z" />
+                </svg>
+              </div>
+              <h1 className="text-3xl font-semibold text-foreground mb-2">
+                What can I help with?
+              </h1>
             </div>
-            <h1 className="text-2xl font-semibold text-foreground mb-2">
-              How can I help you today?
-            </h1>
-            <p className="text-muted-foreground max-w-md">
-              Ask me anything. I can help with writing, analysis, coding, math, and more.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-8 max-w-lg w-full">
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 max-w-2xl w-full">
               {SUGGESTIONS.map((suggestion) => (
                 <button
-                  key={suggestion}
-                  onClick={() => onSend(suggestion)}
-                  className="text-left p-3 rounded-xl border border-border bg-card hover:bg-accent transition-colors text-sm text-foreground"
+                  key={suggestion.label}
+                  onClick={() => onSend(suggestion.text)}
+                  className="flex items-center gap-3 text-left p-4 rounded-xl border border-[#424242] bg-[#2f2f2f]"
                 >
-                  {suggestion}
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#424242]">
+                    <suggestion.icon className="h-4.5 w-4.5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-foreground">{suggestion.label}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{suggestion.text}</div>
+                  </div>
                 </button>
               ))}
             </div>
           </div>
         ) : (
-          <div className="py-4">
+          <div className="py-2">
             {messages.map((msg) => (
               <ChatMessage key={msg.id} message={msg} />
             ))}

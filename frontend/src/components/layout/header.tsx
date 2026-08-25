@@ -64,7 +64,7 @@ export function Header({ activeConversation, onOpenSidebar }: HeaderProps) {
         </DropdownMenu>
 
         {activeConversation && (
-          <span className="hidden lg:inline text-[13px] text-muted-foreground truncate max-w-[300px]">
+          <span className="hidden lg:inline text-[13px] text-muted-foreground truncate max-w-75">
             {activeConversation.title}
           </span>
         )}
