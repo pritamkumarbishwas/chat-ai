@@ -19,6 +19,8 @@ async def connect_database() -> None:
         _client = AsyncIOMotorClient(
             settings.MONGO_URI,
             serverSelectionTimeoutMS=5000,
+            tls=True,
+            tlsAllowInvalidCertificates=True,
         )
         _db = _client[settings.MONGO_DB_NAME]
         await _client.admin.command("ping")

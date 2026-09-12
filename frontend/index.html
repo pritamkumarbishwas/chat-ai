@@ -7,7 +7,8 @@
     <title>ChatGPT</title>
     <script>
       ;(function () {
-        var theme = stored || "light"
+        var stored = localStorage.getItem("theme")
+        var theme = stored === "dark" || stored === "light" ? stored : "light"
         document.documentElement.classList.add(theme)
       })()
     </script>
