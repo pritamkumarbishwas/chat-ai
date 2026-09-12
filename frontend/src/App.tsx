@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Sidebar } from "@/components/sidebar"
 import { ChatArea } from "@/components/chat"
 import { Header } from "@/components/layout"
@@ -18,7 +18,11 @@ import {
 import {
   addConversation,
   addMessage,
+  appendToMessage,
+  updateMessageContent,
+  removeMessage,
   deleteConversation,
+  renameConversation,
   loadConversations,
   loadMessages,
 } from "@/store/slices/conversations-slice"
@@ -34,6 +38,7 @@ import type { Message } from "@/types/chat"
 export default function App() {
   const dispatch = useAppDispatch()
   const streamingRef = useRef(false)
+  const [isStreaming, setIsStreaming] = useState(false)
 
   const [deleteConversationApi] = useDeleteConversationApiMutation()
 
@@ -109,6 +114,7 @@ export default function App() {
       dispatch(addMessage(convId, assistantMessage))
 
       streamingRef.current = true
+      setIsStreaming(true)
 
       const history =
         activeConversation?.messages.map((m) => ({
@@ -133,10 +139,12 @@ export default function App() {
         // onDone
         () => {
           streamingRef.current = false
+          setIsStreaming(false)
         },
         // onError
         (error) => {
           streamingRef.current = false
+          setIsStreaming(false)
           dispatch(
             updateMessageContent({
               conversationId: convId!,
@@ -167,7 +175,7 @@ export default function App() {
       // Remove the failed assistant message
       dispatch(removeMessage({ conversationId, messageId: failedMessageId }))
 
-      // Re-send
+      // Re-send with a fresh assistant placeholder
       const assistantId = crypto.randomUUID()
       const assistantMessage: Message = {
         id: assistantId,
@@ -178,7 +186,9 @@ export default function App() {
       dispatch(addMessage(conversationId, assistantMessage))
 
       streamingRef.current = true
+      setIsStreaming(true)
 
+      // Build history from messages before the failed one
       const history = conv.messages
         .filter((m) => m.id !== failedMessageId)
         .map((m) => ({ role: m.role, content: m.content }))
@@ -198,9 +208,11 @@ export default function App() {
         },
         () => {
           streamingRef.current = false
+          setIsStreaming(false)
         },
         (error) => {
           streamingRef.current = false
+          setIsStreaming(false)
           dispatch(
             updateMessageContent({
               conversationId,
@@ -237,6 +249,13 @@ export default function App() {
     [dispatch, activeConversationId, deleteConversationApi],
   )
 
+  const handleRename = useCallback(
+    (id: string, title: string) => {
+      dispatch(renameConversation({ id, title }))
+    },
+    [dispatch],
+  )
+
   const handleNewChat = useCallback(() => {
     dispatch(clearActiveConversation())
     dispatch(closeSidebar())
@@ -252,6 +271,7 @@ export default function App() {
           onSelect={handleSelect}
           onDelete={handleDelete}
           onNewChat={handleNewChat}
+          onRename={handleRename}
         />
       </div>
 
@@ -273,6 +293,7 @@ export default function App() {
             onSelect={handleSelect}
             onDelete={handleDelete}
             onNewChat={handleNewChat}
+            onRename={handleRename}
           />
         </SheetContent>
       </Sheet>
@@ -289,7 +310,7 @@ export default function App() {
           conversation={activeConversation}
           onSend={handleSend}
           onRetry={handleRetry}
-          isLoading={streamingRef.current}
+          isLoading={isStreaming}
         />
       </div>
     </div>

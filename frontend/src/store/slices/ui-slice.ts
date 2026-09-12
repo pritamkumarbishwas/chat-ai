@@ -21,9 +21,6 @@ const uiSlice = createSlice({
     clearActiveConversation(state) {
       state.activeConversationId = null
     },
-    toggleSidebar(state) {
-      state.sidebarOpen = !state.sidebarOpen
-    },
     openSidebar(state) {
       state.sidebarOpen = true
     },
@@ -36,7 +33,6 @@ const uiSlice = createSlice({
 export const {
   setActiveConversation,
   clearActiveConversation,
-  toggleSidebar,
   openSidebar,
   closeSidebar,
 } = uiSlice.actions

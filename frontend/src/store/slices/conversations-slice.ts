@@ -10,9 +10,13 @@ const initialState: ConversationsState = {
   items: [],
 }
 
+const MAX_TITLE_LENGTH = 40
+
 function generateTitle(content: string): string {
   const cleaned = content.replace(/[#*`]/g, "").trim()
-  return cleaned.length > 40 ? cleaned.slice(0, 40) + "..." : cleaned
+  return cleaned.length > MAX_TITLE_LENGTH
+    ? cleaned.slice(0, MAX_TITLE_LENGTH) + "..."
+    : cleaned
 }
 
 function nowISO(): string {
