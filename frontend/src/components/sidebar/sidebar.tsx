@@ -1,10 +1,12 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef, useEffect } from "react"
 import {
   MessageSquare,
   Search,
   MoreHorizontal,
   Pencil,
   Trash2,
+  Check,
+  X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -16,11 +18,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import type { Conversation } from "@/types/chat"
 
@@ -30,6 +28,7 @@ interface SidebarProps {
   onSelect: (id: string) => void
   onDelete: (id: string) => void
   onNewChat: () => void
+  onRename?: (id: string, title: string) => void
 }
 
 function groupConversations(conversations: Conversation[]) {
@@ -43,7 +42,6 @@ function groupConversations(conversations: Conversation[]) {
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
   const groups: { label: string; items: Conversation[] }[] = []
-
   const todayItems: Conversation[] = []
   const yesterdayItems: Conversation[] = []
   const previous7Days: Conversation[] = []
@@ -52,17 +50,11 @@ function groupConversations(conversations: Conversation[]) {
 
   for (const conv of conversations) {
     const d = new Date(conv.updatedAt)
-    if (d >= today) {
-      todayItems.push(conv)
-    } else if (d >= yesterday) {
-      yesterdayItems.push(conv)
-    } else if (d >= sevenDaysAgo) {
-      previous7Days.push(conv)
-    } else if (d >= thirtyDaysAgo) {
-      previous30Days.push(conv)
-    } else {
-      older.push(conv)
-    }
+    if (d >= today) todayItems.push(conv)
+    else if (d >= yesterday) yesterdayItems.push(conv)
+    else if (d >= sevenDaysAgo) previous7Days.push(conv)
+    else if (d >= thirtyDaysAgo) previous30Days.push(conv)
+    else older.push(conv)
   }
 
   if (todayItems.length) groups.push({ label: "Today", items: todayItems })
@@ -74,15 +66,119 @@ function groupConversations(conversations: Conversation[]) {
   return groups
 }
 
+function RenameInput({
+  initialTitle,
+  onSave,
+  onCancel,
+}: {
+  initialTitle: string
+  onSave: (title: string) => void
+  onCancel: () => void
+}) {
+  const [value, setValue] = useState(initialTitle)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    inputRef.current?.focus()
+    inputRef.current?.select()
+  }, [])
+
+  const handleSave = () => {
+    const trimmed = value.trim()
+    if (trimmed && trimmed !== initialTitle) {
+      onSave(trimmed)
+    } else {
+      onCancel()
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-1 w-full" onClick={(e) => e.stopPropagation()}>
+      <input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") handleSave()
+          if (e.key === "Escape") onCancel()
+        }}
+        onBlur={handleSave}
+        className="flex-1 h-6 px-1 text-[13px] bg-[#1a1a1a] border border-[#555] rounded text-foreground focus:outline-none focus:border-[#10a37f]"
+      />
+      <Button
+        size="icon"
+        variant="ghost"
+        className="h-6 w-6 shrink-0 text-green-500 hover:text-green-400"
+        onClick={handleSave}
+      >
+        <Check className="h-3.5 w-3.5" />
+      </Button>
+      <Button
+        size="icon"
+        variant="ghost"
+        className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+        onClick={onCancel}
+      >
+        <X className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  )
+}
+
+function DeleteConfirmDialog({
+  onConfirm,
+  onCancel,
+}: {
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={onCancel}
+    >
+      <div
+        className="bg-[#2f2f2f] border border-[#424242] rounded-xl p-6 w-80 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-foreground font-semibold text-[15px] mb-2">Delete chat?</h3>
+        <p className="text-muted-foreground text-[13px] mb-5">
+          This will permanently delete this conversation and all its messages.
+        </p>
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onCancel}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            onClick={onConfirm}
+            className="bg-red-600 text-white hover:bg-red-700"
+          >
+            Delete
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function Sidebar({
   conversations,
   activeConversationId,
   onSelect,
   onDelete,
   onNewChat,
+  onRename,
 }: SidebarProps) {
   const [search, setSearch] = useState("")
   const [showSearch, setShowSearch] = useState(false)
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const filteredConversations = useMemo(() => {
     if (!search.trim()) return conversations
@@ -92,7 +188,7 @@ export function Sidebar({
 
   const groups = useMemo(
     () => groupConversations(filteredConversations),
-    [filteredConversations]
+    [filteredConversations],
   )
 
   const handleToggleSearch = () => {
@@ -111,7 +207,16 @@ export function Sidebar({
           onClick={onNewChat}
           className="gap-2 h-9 px-3 text-muted-foreground hover:text-foreground hover:bg-[#2f2f2f] shrink-0"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="M12 20h9" />
             <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
           </svg>
@@ -168,7 +273,9 @@ export function Sidebar({
                     key={conv.id}
                     role="button"
                     tabIndex={0}
-                    onClick={() => onSelect(conv.id)}
+                    onClick={() => {
+                      if (renamingId !== conv.id) onSelect(conv.id)
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault()
@@ -179,46 +286,65 @@ export function Sidebar({
                       "group flex items-center gap-2.5 rounded-lg px-3 py-2 cursor-pointer transition-colors",
                       conv.id === activeConversationId
                         ? "bg-[#2f2f2f] text-foreground"
-                        : "text-muted-foreground hover:bg-[#2f2f2f]/60 hover:text-foreground"
+                        : "text-muted-foreground hover:bg-[#2f2f2f]/60 hover:text-foreground",
                     )}
                   >
                     <MessageSquare className="h-4 w-4 shrink-0" />
-                    <span className="flex-1 truncate text-[13px] leading-tight">
-                      {conv.title}
-                    </span>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground hover:bg-[#424242]"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent
-                        side="right"
-                        align="start"
-                        className="w-48 bg-[#2f2f2f] border-[#424242] text-foreground"
-                      >
-                        <DropdownMenuItem className="gap-2 cursor-pointer text-sm">
-                          <Pencil className="h-3.5 w-3.5" />
-                          Rename
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator className="bg-[#424242]" />
-                        <DropdownMenuItem
-                          className="gap-2 cursor-pointer text-sm text-red-500 focus:text-red-500 focus:bg-red-500/10"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            onDelete(conv.id)
-                          }}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          Delete chat
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {renamingId === conv.id ? (
+                      <RenameInput
+                        initialTitle={conv.title}
+                        onSave={(title) => {
+                          onRename?.(conv.id, title)
+                          setRenamingId(null)
+                        }}
+                        onCancel={() => setRenamingId(null)}
+                      />
+                    ) : (
+                      <>
+                        <span className="flex-1 truncate text-[13px] leading-tight">
+                          {conv.title}
+                        </span>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground hover:bg-[#424242]"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            side="right"
+                            align="start"
+                            className="w-48 bg-[#2f2f2f] border-[#424242] text-foreground"
+                          >
+                            <DropdownMenuItem
+                              className="gap-2 cursor-pointer text-sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setRenamingId(conv.id)
+                              }}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                              Rename
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator className="bg-[#424242]" />
+                            <DropdownMenuItem
+                              className="gap-2 cursor-pointer text-sm text-red-500 focus:text-red-500 focus:bg-red-500/10"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setDeletingId(conv.id)
+                              }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Delete chat
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
@@ -238,6 +364,17 @@ export function Sidebar({
           <span className="flex-1 text-[13px] text-foreground truncate">User</span>
         </div>
       </div>
+
+      {/* Delete confirmation */}
+      {deletingId && (
+        <DeleteConfirmDialog
+          onConfirm={() => {
+            onDelete(deletingId)
+            setDeletingId(null)
+          }}
+          onCancel={() => setDeletingId(null)}
+        />
+      )}
     </aside>
   )
 }

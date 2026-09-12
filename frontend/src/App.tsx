@@ -1,23 +1,40 @@
-import { useCallback, useEffect } from "react"
+import { useCallback, useEffect, useRef } from "react"
 import { Sidebar } from "@/components/sidebar"
 import { ChatArea } from "@/components/chat"
 import { Header } from "@/components/layout"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import {
-  useSendMessageMutation,
   useGetConversationsQuery,
   useGetConversationMessagesQuery,
   useDeleteConversationApiMutation,
+  streamChat,
 } from "@/store/api/chat-api"
-import { selectConversations, selectActiveConversationId, selectActiveConversation, selectSidebarOpen } from "@/store/selectors"
-import { addConversation, addMessage, deleteConversation, loadConversations, loadMessages } from "@/store/slices/conversations-slice"
-import { setActiveConversation, clearActiveConversation, openSidebar, closeSidebar } from "@/store/slices/ui-slice"
+import {
+  selectConversations,
+  selectActiveConversationId,
+  selectActiveConversation,
+  selectSidebarOpen,
+} from "@/store/selectors"
+import {
+  addConversation,
+  addMessage,
+  deleteConversation,
+  loadConversations,
+  loadMessages,
+} from "@/store/slices/conversations-slice"
+import {
+  setActiveConversation,
+  clearActiveConversation,
+  openSidebar,
+  closeSidebar,
+} from "@/store/slices/ui-slice"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import type { Message } from "@/types/chat"
 
 export default function App() {
   const dispatch = useAppDispatch()
-  const [sendMessageApi, { isLoading }] = useSendMessageMutation()
+  const streamingRef = useRef(false)
+
   const [deleteConversationApi] = useDeleteConversationApiMutation()
 
   const conversations = useAppSelector(selectConversations)
@@ -26,9 +43,10 @@ export default function App() {
   const sidebarOpen = useAppSelector(selectSidebarOpen)
 
   const { data: conversationsData } = useGetConversationsQuery()
-  const { data: messagesData } = useGetConversationMessagesQuery(activeConversationId!, {
-    skip: !activeConversationId,
-  })
+  const { data: messagesData } = useGetConversationMessagesQuery(
+    activeConversationId!,
+    { skip: !activeConversationId },
+  )
 
   // Hydrate conversations from backend on mount
   useEffect(() => {
@@ -39,14 +57,31 @@ export default function App() {
 
   // Load messages when selecting a conversation
   useEffect(() => {
-    if (activeConversationId && Array.isArray(messagesData?.messages) && messagesData.messages.length > 0) {
+    if (
+      activeConversationId &&
+      Array.isArray(messagesData?.messages) &&
+      messagesData.messages.length > 0
+    ) {
       dispatch(loadMessages(activeConversationId, messagesData.messages))
     }
   }, [activeConversationId, messagesData, dispatch])
 
+  // Keyboard shortcut: Ctrl+N for new chat
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "n") {
+        e.preventDefault()
+        dispatch(clearActiveConversation())
+        dispatch(closeSidebar())
+      }
+    }
+    window.addEventListener("keydown", handler)
+    return () => window.removeEventListener("keydown", handler)
+  }, [dispatch])
+
   const handleSend = useCallback(
     async (content: string) => {
-      if (!content.trim() || isLoading) return
+      if (!content.trim() || streamingRef.current) return
 
       let convId = activeConversationId
       if (!convId) {
@@ -63,36 +98,120 @@ export default function App() {
       }
       dispatch(addMessage(convId, userMessage))
 
-      try {
-        const history = activeConversation?.messages.map((m) => ({
+      // Create placeholder for streaming assistant message
+      const assistantId = crypto.randomUUID()
+      const assistantMessage: Message = {
+        id: assistantId,
+        role: "assistant",
+        content: "",
+        timestamp: new Date().toISOString(),
+      }
+      dispatch(addMessage(convId, assistantMessage))
+
+      streamingRef.current = true
+
+      const history =
+        activeConversation?.messages.map((m) => ({
           role: m.role,
           content: m.content,
         })) ?? []
 
-        const response = await sendMessageApi({
-          message: content.trim(),
-          conversation_id: convId,
-          history,
-        }).unwrap()
-
-        const assistantMessage: Message = {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: response.reply,
-          timestamp: new Date().toISOString(),
-        }
-        dispatch(addMessage(convId, assistantMessage))
-      } catch {
-        const errorMessage: Message = {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: "Sorry, something went wrong. Please try again.",
-          timestamp: new Date().toISOString(),
-        }
-        dispatch(addMessage(convId, errorMessage))
-      }
+      await streamChat(
+        content.trim(),
+        convId,
+        history,
+        // onChunk — append text to the streaming message
+        (chunk) => {
+          dispatch(
+            appendToMessage({
+              conversationId: convId!,
+              messageId: assistantId,
+              text: chunk,
+            }),
+          )
+        },
+        // onDone
+        () => {
+          streamingRef.current = false
+        },
+        // onError
+        (error) => {
+          streamingRef.current = false
+          dispatch(
+            updateMessageContent({
+              conversationId: convId!,
+              messageId: assistantId,
+              content: `Sorry, something went wrong: ${error}`,
+            }),
+          )
+        },
+      )
     },
-    [activeConversationId, activeConversation, isLoading, dispatch, sendMessageApi]
+    [activeConversationId, activeConversation, dispatch],
+  )
+
+  const handleRetry = useCallback(
+    async (conversationId: string, failedMessageId: string) => {
+      if (streamingRef.current) return
+
+      const conv = conversations.find((c) => c.id === conversationId)
+      if (!conv) return
+
+      // Find the user message that triggered the failed response
+      const msgIndex = conv.messages.findIndex((m) => m.id === failedMessageId)
+      if (msgIndex < 1) return
+
+      const userMsg = conv.messages[msgIndex - 1]
+      if (!userMsg || userMsg.role !== "user") return
+
+      // Remove the failed assistant message
+      dispatch(removeMessage({ conversationId, messageId: failedMessageId }))
+
+      // Re-send
+      const assistantId = crypto.randomUUID()
+      const assistantMessage: Message = {
+        id: assistantId,
+        role: "assistant",
+        content: "",
+        timestamp: new Date().toISOString(),
+      }
+      dispatch(addMessage(conversationId, assistantMessage))
+
+      streamingRef.current = true
+
+      const history = conv.messages
+        .filter((m) => m.id !== failedMessageId)
+        .map((m) => ({ role: m.role, content: m.content }))
+
+      await streamChat(
+        userMsg.content,
+        conversationId,
+        history,
+        (chunk) => {
+          dispatch(
+            appendToMessage({
+              conversationId,
+              messageId: assistantId,
+              text: chunk,
+            }),
+          )
+        },
+        () => {
+          streamingRef.current = false
+        },
+        (error) => {
+          streamingRef.current = false
+          dispatch(
+            updateMessageContent({
+              conversationId,
+              messageId: assistantId,
+              content: `Sorry, something went wrong: ${error}`,
+            }),
+          )
+        },
+      )
+    },
+    [conversations, dispatch],
   )
 
   const handleSelect = useCallback(
@@ -100,7 +219,7 @@ export default function App() {
       dispatch(setActiveConversation(id))
       dispatch(closeSidebar())
     },
-    [dispatch]
+    [dispatch],
   )
 
   const handleDelete = useCallback(
@@ -112,10 +231,10 @@ export default function App() {
       try {
         await deleteConversationApi(id).unwrap()
       } catch {
-        // Backend delete failed, but local state already updated
+        // Backend delete failed, local state already updated
       }
     },
-    [dispatch, activeConversationId, deleteConversationApi]
+    [dispatch, activeConversationId, deleteConversationApi],
   )
 
   const handleNewChat = useCallback(() => {
@@ -137,8 +256,16 @@ export default function App() {
       </div>
 
       {/* Mobile Sidebar */}
-      <Sheet open={sidebarOpen} onOpenChange={(open) => dispatch(open ? openSidebar() : closeSidebar())}>
-        <SheetContent side="left" className="w-[260px] p-0 bg-[#171717] border-[#424242] md:hidden">
+      <Sheet
+        open={sidebarOpen}
+        onOpenChange={(open) =>
+          dispatch(open ? openSidebar() : closeSidebar())
+        }
+      >
+        <SheetContent
+          side="left"
+          className="w-[260px] p-0 bg-[#171717] border-[#424242] md:hidden"
+        >
           <SheetTitle className="sr-only">Chat history</SheetTitle>
           <Sidebar
             conversations={conversations}
@@ -155,12 +282,14 @@ export default function App() {
         <Header
           activeConversation={activeConversation}
           onOpenSidebar={() => dispatch(openSidebar())}
+          onNewChat={handleNewChat}
         />
 
         <ChatArea
           conversation={activeConversation}
           onSend={handleSend}
-          isLoading={isLoading}
+          onRetry={handleRetry}
+          isLoading={streamingRef.current}
         />
       </div>
     </div>

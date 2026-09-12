@@ -1,5 +1,6 @@
 import logging
-from groq import Groq, APIError, RateLimitError, APITimeoutError
+from collections.abc import AsyncGenerator
+from groq import AsyncGroq, APIError, RateLimitError, APITimeoutError
 
 from app.schemas.chat import Message
 
@@ -63,6 +64,12 @@ def generate_mock_response(message: str, history: list[Message]) -> str:
     return f'That\'s an interesting question! Regarding: "{truncated}"\n\nThere are several aspects worth considering. Feel free to ask follow-up questions!'
 
 
+async def mock_stream(message: str, history: list[Message]) -> AsyncGenerator[str, None]:
+    response = generate_mock_response(message, history)
+    for word in response.split(" "):
+        yield word + " "
+
+
 def _build_messages(message: str, history: list[Message]) -> list[dict[str, str]]:
     messages: list[dict[str, str]] = [{"role": "system", "content": SYSTEM_PROMPT}]
     for msg in history:
@@ -76,12 +83,12 @@ class LLMService:
         self.provider = provider
         self.api_key = api_key
         self.model = model
-        self._groq_client: Groq | None = None
+        self._async_groq: AsyncGroq | None = None
 
-    def _get_groq_client(self) -> Groq:
-        if self._groq_client is None:
-            self._groq_client = Groq(api_key=self.api_key)
-        return self._groq_client
+    def _get_async_groq(self) -> AsyncGroq:
+        if self._async_groq is None:
+            self._async_groq = AsyncGroq(api_key=self.api_key)
+        return self._async_groq
 
     async def generate(self, message: str, history: list[Message]) -> str:
         if self.provider == "mock":
@@ -92,34 +99,61 @@ class LLMService:
             return await self._generate_openai(message, history)
         raise ValueError(f"Unknown LLM provider: {self.provider}")
 
-    async def _generate_groq(self, message: str, history: list[Message]) -> str:
-        client = self._get_groq_client()
-        messages = _build_messages(message, history)
+    async def generate_stream(
+        self, message: str, history: list[Message]
+    ) -> AsyncGenerator[str, None]:
+        if self.provider == "mock":
+            async for chunk in mock_stream(message, history):
+                yield chunk
+            return
+        if self.provider == "groq":
+            async for chunk in self._stream_groq(message, history):
+                yield chunk
+            return
+        if self.provider == "openai":
+            async for chunk in self._stream_openai(message, history):
+                yield chunk
+            return
+        raise ValueError(f"Unknown LLM provider: {self.provider}")
 
+    async def _generate_groq(self, message: str, history: list[Message]) -> str:
+        client = self._get_async_groq()
+        messages = _build_messages(message, history)
         try:
-            response = client.chat.completions.create(
+            response = await client.chat.completions.create(
                 model=self.model or "openai/gpt-oss-20b",
                 messages=messages,
                 max_tokens=2048,
                 temperature=0.7,
             )
             return response.choices[0].message.content or ""
-        except RateLimitError:
-            logger.error("Groq rate limit exceeded")
+        except (RateLimitError, APITimeoutError, APIError):
             raise
-        except APITimeoutError:
-            logger.error("Groq request timed out")
-            raise
-        except APIError as e:
-            logger.error(f"Groq API error: {e}")
+
+    async def _stream_groq(
+        self, message: str, history: list[Message]
+    ) -> AsyncGenerator[str, None]:
+        client = self._get_async_groq()
+        messages = _build_messages(message, history)
+        try:
+            stream = await client.chat.completions.create(
+                model=self.model or "openai/gpt-oss-20b",
+                messages=messages,
+                max_tokens=2048,
+                temperature=0.7,
+                stream=True,
+            )
+            async for chunk in stream:
+                if chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+        except (RateLimitError, APITimeoutError, APIError):
             raise
 
     async def _generate_openai(self, message: str, history: list[Message]) -> str:
-        from openai import AsyncOpenAI, APIError as OpenAIError, RateLimitError as OpenAIRateLimitError, APITimeoutError as OpenAITimeoutError
+        from openai import AsyncOpenAI
 
         client = AsyncOpenAI(api_key=self.api_key)
         messages = _build_messages(message, history)
-
         try:
             response = await client.chat.completions.create(
                 model=self.model or "gpt-4o",
@@ -128,15 +162,26 @@ class LLMService:
                 temperature=0.7,
             )
             return response.choices[0].message.content or ""
-        except OpenAIRateLimitError:
-            logger.error("OpenAI rate limit exceeded")
-            raise
-        except OpenAITimeoutError:
-            logger.error("OpenAI request timed out")
-            raise
-        except OpenAIError as e:
-            logger.error(f"OpenAI API error: {e}")
+        except Exception:
             raise
 
-    async def close(self) -> None:
-        self._groq_client = None
+    async def _stream_openai(
+        self, message: str, history: list[Message]
+    ) -> AsyncGenerator[str, None]:
+        from openai import AsyncOpenAI
+
+        client = AsyncOpenAI(api_key=self.api_key)
+        messages = _build_messages(message, history)
+        try:
+            stream = await client.chat.completions.create(
+                model=self.model or "gpt-4o",
+                messages=messages,
+                max_tokens=2048,
+                temperature=0.7,
+                stream=True,
+            )
+            async for chunk in stream:
+                if chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+        except Exception:
+            raise

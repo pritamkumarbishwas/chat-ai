@@ -1,7 +1,6 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from app.models import ConversationDocument, MessageDocument
 
 logger = logging.getLogger(__name__)
 
@@ -13,44 +12,31 @@ class HistoryService:
     def __init__(self, db: AsyncIOMotorDatabase):
         self.db = db
 
-    async def ensure_indexes(self) -> None:
-        await self.db[MESSAGES_COLLECTION].create_index("conversation_id")
-        await self.db[CONVERSATIONS_COLLECTION].create_index("updated_at")
-        logger.info("MongoDB indexes ensured")
-
     async def create_conversation(self, conversation_id: str, title: str) -> None:
-        now = datetime.utcnow()
-        doc = {
+        now = datetime.now(timezone.utc)
+        await self.db[CONVERSATIONS_COLLECTION].insert_one({
             "_id": conversation_id,
             "title": title,
             "created_at": now,
             "updated_at": now,
-        }
-        await self.db[CONVERSATIONS_COLLECTION].insert_one(doc)
-
-    async def update_conversation_title(self, conversation_id: str, title: str) -> None:
-        await self.db[CONVERSATIONS_COLLECTION].update_one(
-            {"_id": conversation_id},
-            {"$set": {"title": title, "updated_at": datetime.utcnow()}},
-        )
+        })
 
     async def touch_conversation(self, conversation_id: str) -> None:
         await self.db[CONVERSATIONS_COLLECTION].update_one(
             {"_id": conversation_id},
-            {"$set": {"updated_at": datetime.utcnow()}},
+            {"$set": {"updated_at": datetime.now(timezone.utc)}},
         )
 
     async def add_message(
         self, conversation_id: str, message_id: str, role: str, content: str
     ) -> None:
-        doc = {
+        await self.db[MESSAGES_COLLECTION].insert_one({
             "_id": message_id,
             "conversation_id": conversation_id,
             "role": role,
             "content": content,
-            "timestamp": datetime.utcnow(),
-        }
-        await self.db[MESSAGES_COLLECTION].insert_one(doc)
+            "timestamp": datetime.now(timezone.utc),
+        })
         await self.touch_conversation(conversation_id)
 
     async def get_conversations(self) -> list[dict]:

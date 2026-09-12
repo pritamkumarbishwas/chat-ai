@@ -8,33 +8,18 @@ import type { Conversation } from "@/types/chat"
 interface ChatAreaProps {
   conversation: Conversation | null
   onSend: (message: string) => void
+  onRetry?: (conversationId: string, messageId: string) => void
   isLoading?: boolean
 }
 
 const SUGGESTIONS = [
-  {
-    icon: Code,
-    label: "Code",
-    text: "Write a Python function to sort a list",
-  },
-  {
-    icon: PenLine,
-    label: "Write",
-    text: "Help me write a professional email",
-  },
-  {
-    icon: Lightbulb,
-    label: "Explain",
-    text: "Explain how neural networks work",
-  },
-  {
-    icon: BarChart3,
-    label: "Analyze",
-    text: "Analyze this data and find trends",
-  },
+  { icon: Code, label: "Code", text: "Write a Python function to sort a list" },
+  { icon: PenLine, label: "Write", text: "Help me write a professional email" },
+  { icon: Lightbulb, label: "Explain", text: "Explain how neural networks work" },
+  { icon: BarChart3, label: "Analyze", text: "Analyze this data and find trends" },
 ] as const
 
-export function ChatArea({ conversation, onSend, isLoading }: ChatAreaProps) {
+export function ChatArea({ conversation, onSend, onRetry, isLoading }: ChatAreaProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -65,7 +50,7 @@ export function ChatArea({ conversation, onSend, isLoading }: ChatAreaProps) {
                 <button
                   key={suggestion.label}
                   onClick={() => onSend(suggestion.text)}
-                  className="flex items-center gap-3 text-left p-4 rounded-xl border border-[#424242] bg-[#2f2f2f]"
+                  className="flex items-center gap-3 text-left p-4 rounded-xl border border-[#424242] bg-[#2f2f2f] hover:bg-[#3a3a3a] transition-colors"
                 >
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#424242]">
                     <suggestion.icon className="h-4.5 w-4.5 text-muted-foreground" />
@@ -80,8 +65,17 @@ export function ChatArea({ conversation, onSend, isLoading }: ChatAreaProps) {
           </div>
         ) : (
           <div className="py-2">
-            {messages.map((msg) => (
-              <ChatMessage key={msg.id} message={msg} />
+            {messages.map((msg, i) => (
+              <ChatMessage
+                key={msg.id}
+                message={msg}
+                isLast={i === messages.length - 1}
+                onRetry={
+                  onRetry && msg.role === "assistant" && msg.content
+                    ? () => onRetry(conversation!.id, msg.id)
+                    : undefined
+                }
+              />
             ))}
             {isLoading && <ThinkingIndicator />}
             <div ref={messagesEndRef} />

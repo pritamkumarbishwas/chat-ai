@@ -39,28 +39,19 @@ export const chatApi = createApi({
   reducerPath: "chatApi",
   baseQuery: fetchBaseQuery({
     baseUrl: API_BASE_URL,
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
   }),
   tagTypes: ["Health", "Conversations", "Messages"],
   endpoints: (builder) => ({
     sendMessage: builder.mutation<ChatResponse, ChatRequest>({
-      query: (body) => ({
-        url: "/api/chat",
-        method: "POST",
-        body,
-      }),
+      query: (body) => ({ url: "/api/chat", method: "POST", body }),
       invalidatesTags: ["Conversations"],
     }),
     health: builder.query<HealthResponse, void>({
       query: () => "/health",
       providesTags: ["Health"],
     }),
-    getConversations: builder.query<
-      { conversations: ConversationSummary[] },
-      void
-    >({
+    getConversations: builder.query<{ conversations: ConversationSummary[] }, void>({
       query: () => "/api/conversations",
       providesTags: ["Conversations"],
     }),
@@ -68,16 +59,11 @@ export const chatApi = createApi({
       { conversation_id: string; messages: ConversationMessage[] },
       string
     >({
-      query: (conversationId) => `/api/conversations/${conversationId}`,
-      providesTags: (_result, _error, conversationId) => [
-        { type: "Messages", id: conversationId },
-      ],
+      query: (id) => `/api/conversations/${id}`,
+      providesTags: (_result, _error, id) => [{ type: "Messages", id }],
     }),
     deleteConversationApi: builder.mutation<{ detail: string }, string>({
-      query: (conversationId) => ({
-        url: `/api/conversations/${conversationId}`,
-        method: "DELETE",
-      }),
+      query: (id) => ({ url: `/api/conversations/${id}`, method: "DELETE" }),
       invalidatesTags: ["Conversations"],
     }),
   }),
@@ -90,3 +76,66 @@ export const {
   useGetConversationMessagesQuery,
   useDeleteConversationApiMutation,
 } = chatApi
+
+// Streaming helper — not part of RTK Query, used directly in App.tsx
+const API_URL = API_BASE_URL
+
+export async function streamChat(
+  message: string,
+  conversationId: string,
+  history: { role: string; content: string }[],
+  onChunk: (text: string) => void,
+  onDone: (conversationId: string) => void,
+  onError: (error: string) => void,
+) {
+  try {
+    const res = await fetch(`${API_URL}/api/chat/stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, conversation_id: conversationId, history }),
+    })
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Request failed" }))
+      onError(err.detail || `HTTP ${res.status}`)
+      return
+    }
+
+    const convId = res.headers.get("X-Conversation-ID") || conversationId
+    const reader = res.body?.getReader()
+    if (!reader) {
+      onError("No response stream")
+      return
+    }
+
+    const decoder = new TextDecoder()
+    let buffer = ""
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split("\n")
+      buffer = lines.pop() || ""
+
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          const data = line.slice(6)
+          if (data === "[DONE]") {
+            onDone(convId)
+            return
+          }
+          if (data === "[ERROR]") {
+            onError("Stream error")
+            return
+          }
+          onChunk(data)
+        }
+      }
+    }
+    onDone(convId)
+  } catch (e) {
+    onError(e instanceof Error ? e.message : "Network error")
+  }
+}

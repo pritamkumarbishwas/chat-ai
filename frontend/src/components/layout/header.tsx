@@ -5,21 +5,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import { PanelLeft, ChevronDown, Share } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { PanelLeft, ChevronDown, Plus } from "lucide-react"
 import { ChatGPTLogo } from "./logo"
 import type { Conversation } from "@/types/chat"
 
 interface HeaderProps {
   activeConversation: Conversation | null
   onOpenSidebar: () => void
+  onNewChat: () => void
 }
 
-export function Header({ activeConversation, onOpenSidebar }: HeaderProps) {
+export function Header({ activeConversation, onOpenSidebar, onNewChat }: HeaderProps) {
   return (
     <header className="flex items-center justify-between px-3 py-2 border-b border-[#424242] shrink-0">
       <div className="flex items-center gap-1">
@@ -39,7 +36,7 @@ export function Header({ activeConversation, onOpenSidebar }: HeaderProps) {
               className="gap-1.5 h-9 px-2 text-foreground hover:bg-[#2f2f2f] font-semibold text-[15px]"
             >
               <ChatGPTLogo className="h-5 w-5" />
-              <span className="hidden sm:inline">ChatGPT</span>
+              <span className="hidden sm:inline">Chat AI</span>
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             </Button>
           </DropdownMenuTrigger>
@@ -47,18 +44,12 @@ export function Header({ activeConversation, onOpenSidebar }: HeaderProps) {
             align="start"
             className="w-56 bg-[#2f2f2f] border-[#424242] text-foreground"
           >
-            <DropdownMenuItem className="gap-2 cursor-pointer text-sm font-medium">
-              <ChatGPTLogo className="h-4 w-4" />
-              ChatGPT
-            </DropdownMenuItem>
-            <DropdownMenuItem className="gap-2 cursor-pointer text-sm text-muted-foreground">
-              <span className="ml-6">More natural, creative</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem className="gap-2 cursor-pointer text-sm font-medium">
-              <span className="ml-6">GPT-4o</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem className="gap-2 cursor-pointer text-sm text-muted-foreground">
-              <span className="ml-6">Great for complex tasks</span>
+            <DropdownMenuItem
+              className="gap-2 cursor-pointer text-sm font-medium"
+              onClick={onNewChat}
+            >
+              <Plus className="h-4 w-4" />
+              New chat
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -76,12 +67,13 @@ export function Header({ activeConversation, onOpenSidebar }: HeaderProps) {
             <Button
               variant="ghost"
               size="icon"
+              onClick={onNewChat}
               className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-[#2f2f2f]"
             >
-              <Share className="h-4 w-4" />
+              <Plus className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Share chat</TooltipContent>
+          <TooltipContent>New chat (Ctrl+N)</TooltipContent>
         </Tooltip>
       </div>
     </header>

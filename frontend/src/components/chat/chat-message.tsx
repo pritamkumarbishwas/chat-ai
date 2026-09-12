@@ -7,6 +7,7 @@ import type { Message } from "@/types/chat"
 
 interface ChatMessageProps {
   message: Message
+  isLast?: boolean
   onRetry?: () => void
 }
 
@@ -50,18 +51,34 @@ function CopyButton({
       onClick={handleCopy}
       className="absolute top-3 right-3 h-8 w-8 rounded-md bg-[#3a3a3a] text-muted-foreground hover:bg-[#4a4a4a] hover:text-foreground transition-all opacity-0 group-hover/code:opacity-100"
     >
-      {copied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+      {copied ? (
+        <Check className="h-3.5 w-3.5 text-primary" />
+      ) : (
+        <Copy className="h-3.5 w-3.5" />
+      )}
     </Button>
   )
 }
 
-function CodeBlock({ language, children }: { language?: string; children: ReactNode }) {
-  const code = typeof children === "string" ? children.replace(/\n$/, "") : String(children)
+function CodeBlock({
+  language,
+  children,
+}: {
+  language?: string
+  children: ReactNode
+}) {
+  const code =
+    typeof children === "string"
+      ? children.replace(/\n$/, "")
+      : String(children)
 
   return (
     <div className="group/code relative my-4 rounded-xl border border-[#333] overflow-hidden bg-[#1a1a1a]">
       <div className="flex items-center justify-between px-4 py-2.5 bg-[#252525] border-b border-[#333]">
-        <Badge variant="secondary" className="bg-[#333] text-muted-foreground text-[11px] font-mono px-2 py-0.5">
+        <Badge
+          variant="secondary"
+          className="bg-[#333] text-muted-foreground text-[11px] font-mono px-2 py-0.5"
+        >
           {language || "code"}
         </Badge>
         <CopyButton text={code} />
@@ -113,6 +130,7 @@ function MessageActions({
           size="icon"
           className="h-8 w-8 text-muted-foreground hover:text-foreground"
           onClick={onRetry}
+          title="Retry"
         >
           <RotateCcw className="h-3.5 w-3.5" />
         </Button>
@@ -145,25 +163,49 @@ function MarkdownContent({ content }: { content: string }) {
             return <>{children}</>
           },
           h1({ children }) {
-            return <h1 className="text-2xl font-bold mt-8 mb-4 pb-2 border-b border-[#333] text-foreground">{children}</h1>
+            return (
+              <h1 className="text-2xl font-bold mt-8 mb-4 pb-2 border-b border-[#333] text-foreground">
+                {children}
+              </h1>
+            )
           },
           h2({ children }) {
-            return <h2 className="text-xl font-semibold mt-6 mb-3 pb-1.5 border-b border-[#333] text-foreground">{children}</h2>
+            return (
+              <h2 className="text-xl font-semibold mt-6 mb-3 pb-1.5 border-b border-[#333] text-foreground">
+                {children}
+              </h2>
+            )
           },
           h3({ children }) {
-            return <h3 className="text-lg font-semibold mt-5 mb-2 text-foreground">{children}</h3>
+            return (
+              <h3 className="text-lg font-semibold mt-5 mb-2 text-foreground">
+                {children}
+              </h3>
+            )
           },
           h4({ children }) {
-            return <h4 className="text-base font-semibold mt-4 mb-2 text-foreground">{children}</h4>
+            return (
+              <h4 className="text-base font-semibold mt-4 mb-2 text-foreground">
+                {children}
+              </h4>
+            )
           },
           p({ children }) {
             return <p className="mb-4 last:mb-0">{children}</p>
           },
           ul({ children }) {
-            return <ul className="list-disc pl-6 mb-4 space-y-1.5 marker:text-muted-foreground">{children}</ul>
+            return (
+              <ul className="list-disc pl-6 mb-4 space-y-1.5 marker:text-muted-foreground">
+                {children}
+              </ul>
+            )
           },
           ol({ children }) {
-            return <ol className="list-decimal pl-6 mb-4 space-y-1.5 marker:text-muted-foreground">{children}</ol>
+            return (
+              <ol className="list-decimal pl-6 mb-4 space-y-1.5 marker:text-muted-foreground">
+                {children}
+              </ol>
+            )
           },
           li({ children }) {
             return <li className="leading-[1.75]">{children}</li>
@@ -195,7 +237,11 @@ function MarkdownContent({ content }: { content: string }) {
             )
           },
           thead({ children }) {
-            return <thead className="bg-[#2a2a2a] border-b border-[#333]">{children}</thead>
+            return (
+              <thead className="bg-[#2a2a2a] border-b border-[#333]">
+                {children}
+              </thead>
+            )
           },
           th({ children }) {
             return (
@@ -213,7 +259,9 @@ function MarkdownContent({ content }: { content: string }) {
             return <hr className="my-6 border-[#333]" />
           },
           strong({ children }) {
-            return <strong className="font-semibold text-foreground">{children}</strong>
+            return (
+              <strong className="font-semibold text-foreground">{children}</strong>
+            )
           },
         }}
       >
@@ -223,8 +271,9 @@ function MarkdownContent({ content }: { content: string }) {
   )
 }
 
-export function ChatMessage({ message, onRetry }: ChatMessageProps) {
+export function ChatMessage({ message, isLast = false, onRetry }: ChatMessageProps) {
   const isUser = message.role === "user"
+  const isEmpty = !isUser && !message.content
 
   return (
     <div className="group flex gap-4 px-4 py-5 md:px-[74px] w-full max-w-4xl mx-auto transition-colors">
@@ -238,12 +287,26 @@ export function ChatMessage({ message, onRetry }: ChatMessageProps) {
           }`}
         >
           {isUser ? (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-white"
+            >
               <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
               <circle cx="12" cy="7" r="4" />
             </svg>
           ) : (
-            <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 text-white">
+            <svg
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              className="h-4 w-4 text-white"
+            >
               <path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729z" />
             </svg>
           )}
@@ -253,9 +316,9 @@ export function ChatMessage({ message, onRetry }: ChatMessageProps) {
       {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="text-sm font-semibold leading-none mb-2">
-          {isUser ? "You" : "ChatGPT"}
+          {isUser ? "You" : "Chat AI"}
         </div>
-        {isUser ? (
+        {isEmpty ? null : isUser ? (
           <div className="text-[15px] text-foreground/90 whitespace-pre-wrap leading-[1.75]">
             {message.content}
           </div>
@@ -265,7 +328,7 @@ export function ChatMessage({ message, onRetry }: ChatMessageProps) {
             <MessageActions
               content={message.content}
               onRetry={onRetry}
-              isLast={true}
+              isLast={isLast}
             />
           </>
         )}
