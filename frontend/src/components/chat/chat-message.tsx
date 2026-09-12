@@ -73,7 +73,7 @@ function CodeBlock({
   const codeText = typeof children === "string"
     ? children.replace(/\n$/, "")
     : typeof children === "object" && children !== null && "props" in children
-      ? (children as React.ReactElement).props?.children || String(children)
+      ? (children as React.ReactElement<{ children?: React.ReactNode }>).props?.children || String(children)
       : String(children)
 
   return (

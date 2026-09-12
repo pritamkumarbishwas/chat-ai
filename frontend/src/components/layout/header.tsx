@@ -6,7 +6,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { PanelLeft, ChevronDown, Plus, Sun, Moon, Monitor } from "lucide-react"
+import { PanelLeft, ChevronDown, Plus, Sun, Moon } from "lucide-react"
 import { useTheme } from "@/hooks/use-theme"
 import { ChatGPTLogo } from "./logo"
 import type { Conversation } from "@/types/chat"

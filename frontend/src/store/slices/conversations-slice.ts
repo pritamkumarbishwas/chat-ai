@@ -67,64 +67,58 @@ const conversationsSlice = createSlice({
         return { payload: { conversationId, message } }
       },
     },
-    appendToMessage: {
-      reducer(
-        state,
-        action: PayloadAction<{
-          conversationId: string
-          messageId: string
-          text: string
-        }>,
-      ) {
-        const conv = state.items.find(
-          (c) => c.id === action.payload.conversationId,
+    appendToMessage(
+      state,
+      action: PayloadAction<{
+        conversationId: string
+        messageId: string
+        text: string
+      }>,
+    ) {
+      const conv = state.items.find(
+        (c) => c.id === action.payload.conversationId,
+      )
+      if (conv) {
+        const msg = conv.messages.find(
+          (m) => m.id === action.payload.messageId,
         )
-        if (conv) {
-          const msg = conv.messages.find(
-            (m) => m.id === action.payload.messageId,
-          )
-          if (msg) {
-            msg.content += action.payload.text
-          }
+        if (msg) {
+          msg.content += action.payload.text
         }
-      },
+      }
     },
-    updateMessageContent: {
-      reducer(
-        state,
-        action: PayloadAction<{
-          conversationId: string
-          messageId: string
-          content: string
-        }>,
-      ) {
-        const conv = state.items.find(
-          (c) => c.id === action.payload.conversationId,
+    updateMessageContent(
+      state,
+      action: PayloadAction<{
+        conversationId: string
+        messageId: string
+        content: string
+      }>,
+    ) {
+      const conv = state.items.find(
+        (c) => c.id === action.payload.conversationId,
+      )
+      if (conv) {
+        const msg = conv.messages.find(
+          (m) => m.id === action.payload.messageId,
         )
-        if (conv) {
-          const msg = conv.messages.find(
-            (m) => m.id === action.payload.messageId,
-          )
-          if (msg) {
-            msg.content = action.payload.content
-          }
+        if (msg) {
+          msg.content = action.payload.content
         }
-      },
+      }
     },
-    removeMessage: {
-      reducer(
-        state,
-        action: PayloadAction<{ conversationId: string; messageId: string }>,
-      ) {
-        const conv = state.items.find(
-          (c) => c.id === action.payload.conversationId,
+    removeMessage(
+      state,
+      action: PayloadAction<{ conversationId: string; messageId: string }>,
+    ) {
+      const conv = state.items.find(
+        (c) => c.id === action.payload.conversationId,
+      )
+      if (conv) {
+        conv.messages = conv.messages.filter(
+          (m) => m.id !== action.payload.messageId,
         )
-        if (conv) {
-          conv.messages = conv.messages.filter(
-            (m) => m.id !== action.payload.messageId,
-          )
-        }
-      },
+      }
     },
     deleteConversation(state, action: PayloadAction<string>) {
       state.items = state.items.filter((c) => c.id !== action.payload)
