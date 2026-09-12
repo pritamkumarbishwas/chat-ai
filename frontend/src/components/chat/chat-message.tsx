@@ -1,13 +1,16 @@
-import { useState, useCallback, type ReactNode } from "react"
+import { useState, useCallback, useEffect, useRef, type ReactNode } from "react"
 import { Copy, Check, ThumbsUp, ThumbsDown, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import Markdown from "react-markdown"
+import remarkGfm from "remark-gfm"
+import rehypeHighlight from "rehype-highlight"
 import type { Message } from "@/types/chat"
 
 interface ChatMessageProps {
   message: Message
   isLast?: boolean
+  isStreaming?: boolean
   onRetry?: () => void
 }
 
@@ -67,9 +70,10 @@ function CodeBlock({
   language?: string
   children: ReactNode
 }) {
-  const code =
-    typeof children === "string"
-      ? children.replace(/\n$/, "")
+  const codeText = typeof children === "string"
+    ? children.replace(/\n$/, "")
+    : typeof children === "object" && children !== null && "props" in children
+      ? (children as React.ReactElement).props?.children || String(children)
       : String(children)
 
   return (
@@ -81,10 +85,12 @@ function CodeBlock({
         >
           {language || "code"}
         </Badge>
-        <CopyButton text={code} />
+        <CopyButton text={typeof codeText === "string" ? codeText : String(codeText)} />
       </div>
       <pre className="p-4 overflow-x-auto text-[13px] leading-[1.7]">
-        <code className="hljs font-mono">{code}</code>
+        <code className={`hljs font-mono${language ? ` language-${language}` : ""}`}>
+          {children}
+        </code>
       </pre>
     </div>
   )
@@ -143,10 +149,13 @@ function MarkdownContent({ content }: { content: string }) {
   return (
     <div className="text-[15px] text-foreground/90 leading-[1.75]">
       <Markdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeHighlight]}
         components={{
           code({ className, children, ...props }) {
             const match = /language-(\w+)/.exec(className || "")
-            const isBlock = String(children).includes("\n")
+            const isHighlighted = className?.includes("hljs")
+            const isBlock = isHighlighted || String(children).includes("\n")
             if (isBlock) {
               return <CodeBlock language={match?.[1]}>{children}</CodeBlock>
             }
@@ -271,9 +280,46 @@ function MarkdownContent({ content }: { content: string }) {
   )
 }
 
-export function ChatMessage({ message, isLast = false, onRetry }: ChatMessageProps) {
+export function ChatMessage({ message, isLast = false, isStreaming = false, onRetry }: ChatMessageProps) {
   const isUser = message.role === "user"
   const isEmpty = !isUser && !message.content
+  const isStreamTarget = isStreaming && isLast && !isUser
+
+  const [displayContent, setDisplayContent] = useState(message.content)
+  const bufferRef = useRef(message.content)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    bufferRef.current = message.content
+
+    if (!isStreamTarget) {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current)
+        timerRef.current = null
+      }
+      setDisplayContent(message.content)
+      return
+    }
+
+    if (!timerRef.current) {
+      timerRef.current = setTimeout(() => {
+        setDisplayContent(bufferRef.current)
+        timerRef.current = null
+      }, 250)
+    }
+
+    return () => {}
+  }, [message.content, isStreamTarget])
+
+  useEffect(() => {
+    if (!isStreamTarget && timerRef.current) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+      setDisplayContent(message.content)
+    }
+  }, [isStreamTarget, message.content])
+
+  const contentToRender = isStreamTarget ? displayContent : message.content
 
   return (
     <div className="group flex gap-4 px-4 py-5 md:px-[74px] w-full max-w-4xl mx-auto transition-colors">
@@ -324,7 +370,7 @@ export function ChatMessage({ message, isLast = false, onRetry }: ChatMessagePro
           </div>
         ) : (
           <>
-            <MarkdownContent content={message.content} />
+            <MarkdownContent content={contentToRender} />
             <MessageActions
               content={message.content}
               onRetry={onRetry}

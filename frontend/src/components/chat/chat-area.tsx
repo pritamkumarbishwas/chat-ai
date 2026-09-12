@@ -70,6 +70,7 @@ export function ChatArea({ conversation, onSend, onRetry, isLoading }: ChatAreaP
                 key={msg.id}
                 message={msg}
                 isLast={i === messages.length - 1}
+                isStreaming={isLoading && i === messages.length - 1 && msg.role === "assistant"}
                 onRetry={
                   onRetry && msg.role === "assistant" && msg.content
                     ? () => onRetry(conversation!.id, msg.id)
