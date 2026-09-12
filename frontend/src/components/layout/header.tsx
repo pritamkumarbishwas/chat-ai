@@ -18,13 +18,14 @@ interface HeaderProps {
 
 export function Header({ activeConversation, onOpenSidebar, onNewChat }: HeaderProps) {
   return (
-    <header className="flex items-center justify-between px-3 py-2 border-b border-[#424242] shrink-0">
+    <header className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
       <div className="flex items-center gap-1">
         <Button
           variant="ghost"
           size="icon"
           onClick={onOpenSidebar}
-          className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-[#2f2f2f] md:hidden"
+          aria-label="Open sidebar"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-card md:hidden"
         >
           <PanelLeft className="h-5 w-5" />
         </Button>
@@ -33,7 +34,8 @@ export function Header({ activeConversation, onOpenSidebar, onNewChat }: HeaderP
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="gap-1.5 h-9 px-2 text-foreground hover:bg-[#2f2f2f] font-semibold text-[15px]"
+              aria-label="Chat AI menu"
+              className="gap-1.5 h-9 px-2 text-foreground hover:bg-card font-semibold text-[15px]"
             >
               <ChatGPTLogo className="h-5 w-5" />
               <span className="hidden sm:inline">Chat AI</span>
@@ -42,7 +44,7 @@ export function Header({ activeConversation, onOpenSidebar, onNewChat }: HeaderP
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="start"
-            className="w-56 bg-[#2f2f2f] border-[#424242] text-foreground"
+            className="w-56 bg-card border-border text-foreground"
           >
             <DropdownMenuItem
               className="gap-2 cursor-pointer text-sm font-medium"
@@ -68,7 +70,8 @@ export function Header({ activeConversation, onOpenSidebar, onNewChat }: HeaderP
               variant="ghost"
               size="icon"
               onClick={onNewChat}
-              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-[#2f2f2f]"
+              aria-label="Start a new chat (Ctrl+N)"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-card"
             >
               <Plus className="h-4 w-4" />
             </Button>

@@ -262,7 +262,7 @@ export default function App() {
   }, [dispatch])
 
   return (
-    <div className="flex h-screen bg-[#212121] text-[#ececec]">
+    <div className="flex h-screen bg-background text-foreground">
       {/* Desktop Sidebar */}
       <div className="hidden md:flex">
         <Sidebar
@@ -284,7 +284,7 @@ export default function App() {
       >
         <SheetContent
           side="left"
-          className="w-[260px] p-0 bg-[#171717] border-[#424242] md:hidden"
+          className="w-[260px] p-0 bg-sidebar border-border md:hidden"
         >
           <SheetTitle className="sr-only">Chat history</SheetTitle>
           <Sidebar
