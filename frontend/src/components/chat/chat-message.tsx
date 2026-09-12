@@ -154,10 +154,8 @@ function MarkdownContent({ content }: { content: string }) {
         components={{
           code({ className, children, ...props }) {
             const match = /language-(\w+)/.exec(className || "")
-            const isHighlighted = className?.includes("hljs")
-            const isBlock = isHighlighted || String(children).includes("\n")
-            if (isBlock) {
-              return <CodeBlock language={match?.[1]}>{children}</CodeBlock>
+            if (match) {
+              return <CodeBlock language={match[1]}>{children}</CodeBlock>
             }
             return (
               <code

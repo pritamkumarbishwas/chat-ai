@@ -1,4 +1,5 @@
 import uuid
+import json
 import logging
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
@@ -120,7 +121,7 @@ async def chat_stream(
                 history=request.history,
             ):
                 full_reply.append(chunk)
-                yield f"data: {chunk}\n\n"
+                yield f"data: {json.dumps(chunk)}\n\n"
         except Exception as e:
             logger.error(f"Stream error: {e}")
             yield f"data: [ERROR]\n\n"

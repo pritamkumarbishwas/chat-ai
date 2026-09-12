@@ -121,14 +121,20 @@ export async function streamChat(
 
       for (const line of lines) {
         if (line.startsWith("data: ")) {
-          const data = line.slice(6)
-          if (data === "[DONE]") {
+          const raw = line.slice(6)
+          if (raw === "[DONE]") {
             onDone(convId)
             return
           }
-          if (data === "[ERROR]") {
+          if (raw === "[ERROR]") {
             onError("Stream error")
             return
+          }
+          let data: string
+          try {
+            data = JSON.parse(raw)
+          } catch {
+            data = raw
           }
           onChunk(data)
         }
