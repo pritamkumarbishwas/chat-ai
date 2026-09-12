@@ -49,7 +49,7 @@ function CopyButton({
       variant="ghost"
       size="icon"
       onClick={handleCopy}
-      className="absolute top-3 right-3 h-8 w-8 rounded-md bg-[#3a3a3a] text-muted-foreground hover:bg-[#4a4a4a] hover:text-foreground transition-all opacity-0 group-hover/code:opacity-100"
+      className="absolute top-3 right-3 h-8 w-8 rounded-md bg-muted-hover text-muted-foreground hover:bg-muted-hover-strong hover:text-foreground transition-all opacity-0 group-hover/code:opacity-100"
     >
       {copied ? (
         <Check className="h-3.5 w-3.5 text-primary" />
@@ -73,11 +73,11 @@ function CodeBlock({
       : String(children)
 
   return (
-    <div className="group/code relative my-4 rounded-xl border border-[#333] overflow-hidden bg-[#1a1a1a]">
-      <div className="flex items-center justify-between px-4 py-2.5 bg-[#252525] border-b border-[#333]">
+    <div className="group/code relative my-4 rounded-xl border border-border-subtle overflow-hidden bg-code-bg">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-code-header border-b border-border-subtle">
         <Badge
           variant="secondary"
-          className="bg-[#333] text-muted-foreground text-[11px] font-mono px-2 py-0.5"
+          className="bg-badge-bg text-muted-foreground text-[11px] font-mono px-2 py-0.5"
         >
           {language || "code"}
         </Badge>
@@ -152,7 +152,7 @@ function MarkdownContent({ content }: { content: string }) {
             }
             return (
               <code
-                className="rounded-md bg-[#333] px-1.5 py-0.5 text-[13px] text-foreground/80 font-mono border border-[#424242]"
+                className="rounded-md bg-badge-bg px-1.5 py-0.5 text-[13px] text-foreground/80 font-mono border border-border"
                 {...props}
               >
                 {children}
@@ -164,14 +164,14 @@ function MarkdownContent({ content }: { content: string }) {
           },
           h1({ children }) {
             return (
-              <h1 className="text-2xl font-bold mt-8 mb-4 pb-2 border-b border-[#333] text-foreground">
+              <h1 className="text-2xl font-bold mt-8 mb-4 pb-2 border-b border-border-subtle text-foreground">
                 {children}
               </h1>
             )
           },
           h2({ children }) {
             return (
-              <h2 className="text-xl font-semibold mt-6 mb-3 pb-1.5 border-b border-[#333] text-foreground">
+              <h2 className="text-xl font-semibold mt-6 mb-3 pb-1.5 border-b border-border-subtle text-foreground">
                 {children}
               </h2>
             )
@@ -231,14 +231,14 @@ function MarkdownContent({ content }: { content: string }) {
           },
           table({ children }) {
             return (
-              <div className="overflow-x-auto my-4 rounded-lg border border-[#333]">
+              <div className="overflow-x-auto my-4 rounded-lg border border-border-subtle">
                 <table className="w-full text-sm">{children}</table>
               </div>
             )
           },
           thead({ children }) {
             return (
-              <thead className="bg-[#2a2a2a] border-b border-[#333]">
+              <thead className="bg-table-header border-b border-border-subtle">
                 {children}
               </thead>
             )
@@ -252,11 +252,11 @@ function MarkdownContent({ content }: { content: string }) {
           },
           td({ children }) {
             return (
-              <td className="px-4 py-2.5 border-t border-[#333]">{children}</td>
+              <td className="px-4 py-2.5 border-t border-border-subtle">{children}</td>
             )
           },
           hr() {
-            return <hr className="my-6 border-[#333]" />
+            return <hr className="my-6 border-border-subtle" />
           },
           strong({ children }) {
             return (
@@ -282,8 +282,8 @@ export function ChatMessage({ message, isLast = false, onRetry }: ChatMessagePro
         <div
           className={`flex h-8 w-8 items-center justify-center rounded-full ${
             isUser
-              ? "bg-linear-to-br from-[#6366f1] to-[#8b5cf6]"
-              : "bg-linear-to-br from-[#10a37f] to-[#0d8c6d]"
+              ? "bg-gradient-to-br from-user to-user-end"
+              : "bg-gradient-to-br from-primary to-primary-end"
           }`}
         >
           {isUser ? (
@@ -296,7 +296,7 @@ export function ChatMessage({ message, isLast = false, onRetry }: ChatMessagePro
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="text-white"
+              className="text-primary-foreground"
             >
               <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
               <circle cx="12" cy="7" r="4" />
@@ -305,7 +305,7 @@ export function ChatMessage({ message, isLast = false, onRetry }: ChatMessagePro
             <svg
               viewBox="0 0 24 24"
               fill="currentColor"
-              className="h-4 w-4 text-white"
+              className="h-4 w-4 text-primary-foreground"
             >
               <path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729z" />
             </svg>

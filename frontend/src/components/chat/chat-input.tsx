@@ -44,7 +44,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
 
   return (
     <div className="w-full max-w-[48rem] mx-auto px-4 pb-4 md:pb-6">
-      <div className="relative flex items-end rounded-3xl bg-[#2f2f2f] border border-[#424242] focus-within:border-[#555] transition-colors">
+      <div className="relative flex items-end rounded-3xl bg-card border border-border focus-within:border-border-focus transition-colors">
         <textarea
           ref={textareaRef}
           value={input}
@@ -54,7 +54,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           rows={1}
           disabled={disabled}
           aria-label="Message input"
-          className="flex-1 resize-none bg-transparent text-[16px] text-white placeholder-[#8e8e8e] py-3 pl-4 pr-12 focus:outline-none disabled:opacity-50 min-h-[28px] max-h-[200px] leading-[1.6]"
+          className="flex-1 resize-none bg-transparent text-[16px] text-foreground placeholder-muted-foreground py-3 pl-4 pr-12 focus:outline-none disabled:opacity-50 min-h-[28px] max-h-[200px] leading-[1.6]"
         />
 
         <div className="flex items-center justify-center shrink-0 pr-2 pb-2.5">
@@ -66,8 +66,8 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
                 disabled={!input.trim() || disabled}
                 className={`h-8 w-8 rounded-full shrink-0 transition-colors ${
                   input.trim()
-                    ? "bg-white text-black hover:bg-[#e0e0e0]"
-                    : "bg-[#424242] text-[#8e8e8e] cursor-not-allowed"
+                    ? "bg-primary-fg-hover text-on-primary hover:bg-primary/90"
+                    : "bg-muted text-muted-foreground cursor-not-allowed"
                 }`}
               >
                 <ArrowUp className="h-5 w-5" strokeWidth={2.5} />
@@ -78,7 +78,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         </div>
       </div>
 
-      <p className="text-center text-[11px] text-[#8e8e8e] mt-2 select-none">
+      <p className="text-center text-[11px] text-muted-foreground mt-2 select-none">
         AI can make mistakes. Check important info.
       </p>
     </div>

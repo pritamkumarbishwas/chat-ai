@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react"
 import React from "react"
+import * as DialogPrimitive from "@radix-ui/react-dialog"
 import {
   MessageSquare,
   Search,
@@ -131,73 +132,88 @@ function RenameInput({
 
 function DeleteConfirmDialog({
   conversationTitle,
+  messageCount,
   onConfirm,
   onCancel,
 }: {
   conversationTitle: string
+  messageCount: number
   onConfirm: () => void
   onCancel: () => void
 }) {
-  const cancelRef = useRef<HTMLButtonElement>(null)
-  const confirmRef = useRef<HTMLButtonElement>(null)
-
-  useEffect(() => {
-    confirmRef.current?.focus()
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault()
-        onCancel()
-      }
-      if (e.key === "Tab") {
-        const target = e.shiftKey ? confirmRef.current : cancelRef.current
-        target?.focus()
-        e.preventDefault()
-      }
-    }
-    document.addEventListener("keydown", handleKeyDown)
-    return () => document.removeEventListener("keydown", handleKeyDown)
-  }, [onCancel])
+  const isMac =
+    typeof navigator !== "undefined" && navigator.platform?.includes("Mac")
+  const shortcutHint = isMac ? "\u2318\u232B" : "Ctrl+\u232B"
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="delete-dialog-title"
-      aria-describedby="delete-dialog-desc"
-      onClick={onCancel}
-    >
-      <div
-        className="bg-card border border-border rounded-xl p-6 w-80 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 id="delete-dialog-title" className="text-foreground font-semibold text-[15px] mb-2">
-          Delete chat?
-        </h3>
-        <p id="delete-dialog-desc" className="text-muted-foreground text-[13px] mb-5">
-          This will permanently delete &ldquo;{conversationTitle}&rdquo; and all its messages.
-        </p>
-        <div className="flex justify-end gap-2">
-          <Button
-            ref={cancelRef}
-            variant="ghost"
-            size="sm"
-            onClick={onCancel}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            Cancel
-          </Button>
-          <Button
-            ref={confirmRef}
-            size="sm"
-            onClick={onConfirm}
-            className="bg-destructive text-white hover:bg-destructive/90"
-          >
-            Delete
-          </Button>
-        </div>
-      </div>
-    </div>
+    <DialogPrimitive.Root open onOpenChange={(open) => !open && onCancel()}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Content
+          aria-labelledby="delete-dialog-title"
+          aria-describedby="delete-dialog-desc"
+          className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-[360px] rounded-2xl border border-border bg-card p-0 shadow-2xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]"
+          onEscapeKeyDown={onCancel}
+          onPointerDownOutside={onCancel}
+        >
+          {/* Icon */}
+          <div className="flex justify-center pt-6 pb-2">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+              <Trash2 className="h-6 w-6 text-destructive" />
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="px-6 pb-2 text-center">
+            <DialogPrimitive.Title
+              id="delete-dialog-title"
+              className="text-foreground font-semibold text-[15px] mb-1"
+            >
+              Delete chat?
+            </DialogPrimitive.Title>
+            <DialogPrimitive.Description
+              id="delete-dialog-desc"
+              className="text-muted-foreground text-[13px] leading-relaxed"
+            >
+              <span className="text-foreground font-medium truncate block max-w-full">
+                {conversationTitle.length > 40
+                  ? conversationTitle.slice(0, 40) + "..."
+                  : conversationTitle}
+              </span>
+              <span className="mt-1 block">
+                {messageCount === 1
+                  ? "1 message will be permanently deleted."
+                  : `${messageCount} messages will be permanently deleted.`}
+              </span>
+            </DialogPrimitive.Description>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-2 p-4 bg-muted/30 rounded-b-2xl">
+            <DialogPrimitive.Close asChild>
+              <Button
+                variant="ghost"
+                className="flex-1 text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </Button>
+            </DialogPrimitive.Close>
+            <DialogPrimitive.Close asChild>
+              <Button
+                variant="destructive"
+                className="flex-1 gap-1.5"
+                onClick={onConfirm}
+              >
+                Delete
+                <kbd className="hidden sm:inline text-[10px] font-mono opacity-60 ml-1">
+                  {shortcutHint}
+                </kbd>
+              </Button>
+            </DialogPrimitive.Close>
+          </div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   )
 }
 
@@ -504,6 +520,7 @@ export function Sidebar({
       {deletingId && deletingConversation && (
         <DeleteConfirmDialog
           conversationTitle={deletingConversation.title}
+          messageCount={deletingConversation.messages.length}
           onConfirm={() => {
             onDelete(deletingId)
             setDeletingId(null)
