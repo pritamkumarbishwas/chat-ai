@@ -73,7 +73,6 @@ async def chat(
     llm: LLMService = Depends(get_llm_service),
 ):
     conversation_id = request.conversation_id or str(uuid.uuid4())
-    history_service = _get_history_service()
 
     try:
         reply = await llm.generate(
@@ -93,7 +92,11 @@ async def chat(
         logger.exception(f"Unexpected error in chat: {e}")
         raise HTTPException(status_code=500, detail="An unexpected error occurred.")
 
-    await _persist_messages(history_service, conversation_id, request.message, reply)
+    history_service = _get_history_service()
+    if history_service is None:
+        logger.warning("History not saved: database not connected")
+    else:
+        await _persist_messages(history_service, conversation_id, request.message, reply)
 
     return ChatResponse(
         reply=reply,
@@ -108,7 +111,6 @@ async def chat_stream(
     llm: LLMService = Depends(get_llm_service),
 ):
     conversation_id = request.conversation_id or str(uuid.uuid4())
-    history_service = _get_history_service()
 
     async def generate_stream():
         full_reply = []
@@ -119,18 +121,25 @@ async def chat_stream(
             ):
                 full_reply.append(chunk)
                 yield f"data: {chunk}\n\n"
-            yield "data: [DONE]\n\n"
         except Exception as e:
             logger.error(f"Stream error: {e}")
             yield f"data: [ERROR]\n\n"
             return
 
-        await _persist_messages(
-            history_service,
-            conversation_id,
-            request.message,
-            "".join(full_reply),
-        )
+        # Persist BEFORE [DONE] so the generator is still alive
+        full_reply_text = "".join(full_reply)
+        history_service = _get_history_service()
+        if history_service is None:
+            logger.warning("History not saved: database not connected")
+        else:
+            await _persist_messages(
+                history_service,
+                conversation_id,
+                request.message,
+                full_reply_text,
+            )
+
+        yield "data: [DONE]\n\n"
 
     return StreamingResponse(
         generate_stream(),

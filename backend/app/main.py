@@ -29,6 +29,8 @@ async def lifespan(app: FastAPI):
     logger.info(f"LLM Provider: {settings.LLM_PROVIDER}")
     logger.info(f"API Key configured: {settings.has_valid_api_key}")
     await connect_database()
+    from app.core.database import is_database_connected
+    logger.info(f"MongoDB connected: {is_database_connected()}")
     yield
     await close_database()
     logger.info("Shutting down")
