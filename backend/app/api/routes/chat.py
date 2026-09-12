@@ -5,11 +5,13 @@ from groq import APIError as GroqAPIError, RateLimitError as GroqRateLimitError,
 
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.services.llm_service import LLMService
+from app.services.history_service import HistoryService
 from app.core.config import get_settings, Settings
+from app.core.database import get_database
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/chat", tags=["chat"])
+router = APIRouter(prefix="/api", tags=["chat"])
 
 
 def get_llm_service(settings: Settings = Depends(get_settings)) -> LLMService:
@@ -25,15 +27,21 @@ def get_llm_service(settings: Settings = Depends(get_settings)) -> LLMService:
     )
 
 
-@router.post("", response_model=ChatResponse)
+def get_history_service() -> HistoryService:
+    db = get_database()
+    return HistoryService(db)
+
+
+@router.post("/chat", response_model=ChatResponse)
 async def chat(
     request: ChatRequest,
-    service: LLMService = Depends(get_llm_service),
+    llm: LLMService = Depends(get_llm_service),
+    history_service: HistoryService = Depends(get_history_service),
 ):
     conversation_id = request.conversation_id or str(uuid.uuid4())
 
     try:
-        reply = await service.generate(
+        reply = await llm.generate(
             message=request.message,
             history=request.history,
         )
@@ -65,8 +73,68 @@ async def chat(
             detail="An unexpected error occurred.",
         )
 
+    # Persist to MongoDB
+    try:
+        exists = await history_service.conversation_exists(conversation_id)
+        if not exists:
+            title = request.message[:40] + ("..." if len(request.message) > 40 else "")
+            await history_service.create_conversation(conversation_id, title)
+
+        await history_service.add_message(
+            conversation_id=conversation_id,
+            message_id=str(uuid.uuid4()),
+            role="user",
+            content=request.message,
+        )
+        await history_service.add_message(
+            conversation_id=conversation_id,
+            message_id=str(uuid.uuid4()),
+            role="assistant",
+            content=reply,
+        )
+    except Exception as e:
+        logger.error(f"Failed to persist chat history: {e}")
+
     return ChatResponse(
         reply=reply,
         conversation_id=conversation_id,
-        model=service.model,
+        model=llm.model,
     )
+
+
+@router.get("/conversations")
+async def list_conversations(
+    history_service: HistoryService = Depends(get_history_service),
+):
+    try:
+        conversations = await history_service.get_conversations()
+        return {"conversations": conversations}
+    except Exception as e:
+        logger.error(f"Failed to fetch conversations: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch conversations")
+
+
+@router.get("/conversations/{conversation_id}")
+async def get_conversation(
+    conversation_id: str,
+    history_service: HistoryService = Depends(get_history_service),
+):
+    try:
+        messages = await history_service.get_messages(conversation_id)
+        return {"conversation_id": conversation_id, "messages": messages}
+    except Exception as e:
+        logger.error(f"Failed to fetch conversation: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch conversation")
+
+
+@router.delete("/conversations/{conversation_id}")
+async def delete_conversation(
+    conversation_id: str,
+    history_service: HistoryService = Depends(get_history_service),
+):
+    try:
+        await history_service.delete_conversation(conversation_id)
+        return {"detail": "Conversation deleted"}
+    except Exception as e:
+        logger.error(f"Failed to delete conversation: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete conversation")

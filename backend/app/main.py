@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from app.api.routes.chat import router as chat_router
 from app.core.config import get_settings
+from app.core.database import connect_database, close_database
 from app.schemas.chat import HealthResponse
 
 logging.basicConfig(
@@ -27,7 +28,9 @@ async def lifespan(app: FastAPI):
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     logger.info(f"LLM Provider: {settings.LLM_PROVIDER}")
     logger.info(f"API Key configured: {settings.has_valid_api_key}")
+    await connect_database()
     yield
+    await close_database()
     logger.info("Shutting down")
 
 

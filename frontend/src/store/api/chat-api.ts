@@ -21,6 +21,20 @@ export interface HealthResponse {
   api_configured: boolean
 }
 
+export interface ConversationSummary {
+  id: string
+  title: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ConversationMessage {
+  id: string
+  role: "user" | "assistant"
+  content: string
+  timestamp: string
+}
+
 export const chatApi = createApi({
   reducerPath: "chatApi",
   baseQuery: fetchBaseQuery({
@@ -29,7 +43,7 @@ export const chatApi = createApi({
       "Content-Type": "application/json",
     },
   }),
-  tagTypes: ["Health"],
+  tagTypes: ["Health", "Conversations", "Messages"],
   endpoints: (builder) => ({
     sendMessage: builder.mutation<ChatResponse, ChatRequest>({
       query: (body) => ({
@@ -37,12 +51,42 @@ export const chatApi = createApi({
         method: "POST",
         body,
       }),
+      invalidatesTags: ["Conversations"],
     }),
     health: builder.query<HealthResponse, void>({
       query: () => "/health",
       providesTags: ["Health"],
     }),
+    getConversations: builder.query<
+      { conversations: ConversationSummary[] },
+      void
+    >({
+      query: () => "/api/conversations",
+      providesTags: ["Conversations"],
+    }),
+    getConversationMessages: builder.query<
+      { conversation_id: string; messages: ConversationMessage[] },
+      string
+    >({
+      query: (conversationId) => `/api/conversations/${conversationId}`,
+      providesTags: (_result, _error, conversationId) => [
+        { type: "Messages", id: conversationId },
+      ],
+    }),
+    deleteConversationApi: builder.mutation<{ detail: string }, string>({
+      query: (conversationId) => ({
+        url: `/api/conversations/${conversationId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Conversations"],
+    }),
   }),
 })
 
-export const { useSendMessageMutation, useHealthQuery } = chatApi
+export const {
+  useSendMessageMutation,
+  useHealthQuery,
+  useGetConversationsQuery,
+  useGetConversationMessagesQuery,
+  useDeleteConversationApiMutation,
+} = chatApi

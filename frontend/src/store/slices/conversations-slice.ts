@@ -15,6 +15,10 @@ function generateTitle(content: string): string {
   return cleaned.length > 40 ? cleaned.slice(0, 40) + "..." : cleaned
 }
 
+function nowISO(): string {
+  return new Date().toISOString()
+}
+
 const conversationsSlice = createSlice({
   name: "conversations",
   initialState,
@@ -24,7 +28,7 @@ const conversationsSlice = createSlice({
         state.items.unshift(action.payload)
       },
       prepare(content: string, id: string) {
-        const now = new Date()
+        const now = nowISO()
         return {
           payload: {
             id,
@@ -41,7 +45,7 @@ const conversationsSlice = createSlice({
         const conv = state.items.find((c) => c.id === action.payload.conversationId)
         if (conv) {
           conv.messages.push(action.payload.message)
-          conv.updatedAt = new Date()
+          conv.updatedAt = nowISO()
           if (conv.messages.length === 1 && action.payload.message.role === "user") {
             conv.title = generateTitle(action.payload.message.content)
           }
@@ -60,10 +64,50 @@ const conversationsSlice = createSlice({
         conv.title = action.payload.title
       }
     },
+    loadConversations: {
+      reducer(state, action: PayloadAction<Conversation[]>) {
+        const backendIds = new Set(action.payload.map((c) => c.id))
+        const localOnly = state.items.filter((c) => !backendIds.has(c.id))
+        state.items = [...action.payload, ...localOnly]
+      },
+      prepare(backendConversations: { id: string; title: string; created_at: string; updated_at: string }[]) {
+        const conversations: Conversation[] = (backendConversations ?? []).map((c) => ({
+          id: c.id,
+          title: c.title,
+          messages: [],
+          createdAt: c.created_at,
+          updatedAt: c.updated_at,
+        }))
+        return { payload: conversations }
+      },
+    },
+    loadMessages: {
+      reducer(state, action: PayloadAction<{ conversationId: string; messages: Message[] }>) {
+        const conv = state.items.find((c) => c.id === action.payload.conversationId)
+        if (conv && conv.messages.length === 0) {
+          conv.messages = action.payload.messages
+        }
+      },
+      prepare(conversationId: string, backendMessages: { id: string; role: string; content: string; timestamp: string }[]) {
+        const messages: Message[] = (backendMessages ?? []).map((m) => ({
+          id: m.id,
+          role: m.role as "user" | "assistant",
+          content: m.content,
+          timestamp: m.timestamp,
+        }))
+        return { payload: { conversationId, messages } }
+      },
+    },
   },
 })
 
-export const { addConversation, addMessage, deleteConversation, renameConversation } =
-  conversationsSlice.actions
+export const {
+  addConversation,
+  addMessage,
+  deleteConversation,
+  renameConversation,
+  loadConversations,
+  loadMessages,
+} = conversationsSlice.actions
 
 export default conversationsSlice.reducer

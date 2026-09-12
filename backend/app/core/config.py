@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     QDRANT_API_KEY: str = ""
     QDRANT_COLLECTION: str = "chat_ai"
 
+    # MongoDB
+    MONGO_URI: str = ""
+    MONGO_DB_NAME: str = "learn-ai"
+
     # Embeddings
     EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
     EMBEDDING_DIMENSION: int = 384

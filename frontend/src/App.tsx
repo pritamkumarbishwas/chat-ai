@@ -1,11 +1,16 @@
-import { useCallback } from "react"
+import { useCallback, useEffect } from "react"
 import { Sidebar } from "@/components/sidebar"
 import { ChatArea } from "@/components/chat"
 import { Header } from "@/components/layout"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
-import { useSendMessageMutation } from "@/store/api/chat-api"
+import {
+  useSendMessageMutation,
+  useGetConversationsQuery,
+  useGetConversationMessagesQuery,
+  useDeleteConversationApiMutation,
+} from "@/store/api/chat-api"
 import { selectConversations, selectActiveConversationId, selectActiveConversation, selectSidebarOpen } from "@/store/selectors"
-import { addConversation, addMessage, deleteConversation } from "@/store/slices/conversations-slice"
+import { addConversation, addMessage, deleteConversation, loadConversations, loadMessages } from "@/store/slices/conversations-slice"
 import { setActiveConversation, clearActiveConversation, openSidebar, closeSidebar } from "@/store/slices/ui-slice"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import type { Message } from "@/types/chat"
@@ -13,11 +18,31 @@ import type { Message } from "@/types/chat"
 export default function App() {
   const dispatch = useAppDispatch()
   const [sendMessageApi, { isLoading }] = useSendMessageMutation()
+  const [deleteConversationApi] = useDeleteConversationApiMutation()
 
   const conversations = useAppSelector(selectConversations)
   const activeConversationId = useAppSelector(selectActiveConversationId)
   const activeConversation = useAppSelector(selectActiveConversation)
   const sidebarOpen = useAppSelector(selectSidebarOpen)
+
+  const { data: conversationsData } = useGetConversationsQuery()
+  const { data: messagesData } = useGetConversationMessagesQuery(activeConversationId!, {
+    skip: !activeConversationId,
+  })
+
+  // Hydrate conversations from backend on mount
+  useEffect(() => {
+    if (conversationsData?.conversations) {
+      dispatch(loadConversations(conversationsData.conversations))
+    }
+  }, [conversationsData, dispatch])
+
+  // Load messages when selecting a conversation
+  useEffect(() => {
+    if (activeConversationId && Array.isArray(messagesData?.messages) && messagesData.messages.length > 0) {
+      dispatch(loadMessages(activeConversationId, messagesData.messages))
+    }
+  }, [activeConversationId, messagesData, dispatch])
 
   const handleSend = useCallback(
     async (content: string) => {
@@ -34,7 +59,7 @@ export default function App() {
         id: crypto.randomUUID(),
         role: "user",
         content: content.trim(),
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
       }
       dispatch(addMessage(convId, userMessage))
 
@@ -54,7 +79,7 @@ export default function App() {
           id: crypto.randomUUID(),
           role: "assistant",
           content: response.reply,
-          timestamp: new Date(),
+          timestamp: new Date().toISOString(),
         }
         dispatch(addMessage(convId, assistantMessage))
       } catch {
@@ -62,7 +87,7 @@ export default function App() {
           id: crypto.randomUUID(),
           role: "assistant",
           content: "Sorry, something went wrong. Please try again.",
-          timestamp: new Date(),
+          timestamp: new Date().toISOString(),
         }
         dispatch(addMessage(convId, errorMessage))
       }
@@ -79,13 +104,18 @@ export default function App() {
   )
 
   const handleDelete = useCallback(
-    (id: string) => {
+    async (id: string) => {
       dispatch(deleteConversation(id))
       if (activeConversationId === id) {
         dispatch(clearActiveConversation())
       }
+      try {
+        await deleteConversationApi(id).unwrap()
+      } catch {
+        // Backend delete failed, but local state already updated
+      }
     },
-    [dispatch, activeConversationId]
+    [dispatch, activeConversationId, deleteConversationApi]
   )
 
   const handleNewChat = useCallback(() => {
