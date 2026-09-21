@@ -69,7 +69,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["X-Request-ID", "X-Response-Time"],
+    expose_headers=["X-Request-ID", "X-Response-Time", "X-Conversation-ID"],
 )
 
 app.include_router(chat_router)

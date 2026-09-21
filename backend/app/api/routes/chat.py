@@ -1,6 +1,7 @@
 import uuid
 import json
 import logging
+import asyncio
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from groq import APIError as GroqAPIError, RateLimitError as GroqRateLimitError, APITimeoutError as GroqTimeoutError
@@ -122,25 +123,28 @@ async def chat_stream(
             ):
                 full_reply.append(chunk)
                 yield f"data: {json.dumps(chunk)}\n\n"
+            yield "data: [DONE]\n\n"
+        except asyncio.CancelledError:
+            logger.info("Client disconnected during stream")
+            raise
         except Exception as e:
             logger.error(f"Stream error: {e}")
             yield f"data: [ERROR]\n\n"
-            return
-
-        # Persist BEFORE [DONE] so the generator is still alive
-        full_reply_text = "".join(full_reply)
-        history_service = _get_history_service()
-        if history_service is None:
-            logger.warning("History not saved: database not connected")
-        else:
-            await _persist_messages(
-                history_service,
-                conversation_id,
-                request.message,
-                full_reply_text,
-            )
-
-        yield "data: [DONE]\n\n"
+        finally:
+            if full_reply:
+                full_reply_text = "".join(full_reply)
+                history_service = _get_history_service()
+                if history_service is None:
+                    logger.warning("History not saved: database not connected")
+                else:
+                    asyncio.create_task(
+                        _persist_messages(
+                            history_service,
+                            conversation_id,
+                            request.message,
+                            full_reply_text,
+                        )
+                    )
 
     return StreamingResponse(
         generate_stream(),

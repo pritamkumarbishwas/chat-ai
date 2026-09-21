@@ -71,8 +71,12 @@ async def mock_stream(message: str, history: list[Message]) -> AsyncGenerator[st
 
 
 def _build_messages(message: str, history: list[Message]) -> list[dict[str, str]]:
+    # Truncate history to avoid token limits (keep last 10 messages)
+    MAX_HISTORY = 10
+    recent_history = history[-MAX_HISTORY:] if len(history) > MAX_HISTORY else history
+    
     messages: list[dict[str, str]] = [{"role": "system", "content": SYSTEM_PROMPT}]
-    for msg in history:
+    for msg in recent_history:
         messages.append({"role": msg.role.value, "content": msg.content})
     messages.append({"role": "user", "content": message})
     return messages
