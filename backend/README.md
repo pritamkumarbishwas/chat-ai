@@ -1,62 +1,42 @@
-# Chat AI Backend
+# Chat AI backend
 
-FastAPI backend for the ChatGPT-style chatbot.
+This is the FastAPI service for Chat AI. For the full project overview, architecture diagram, screenshot, provider configuration, and frontend setup, see the [project README](../README.md).
 
-## Setup
+## Local development
 
-```bash
-# Create virtual environment
+From this directory:
+
+```powershell
 python -m venv .venv
-.venv\Scripts\activate  # Windows
-# source .venv/bin/activate  # Mac/Linux
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Copy env file and configure
-cp .env.example .env
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
 ```
 
-## Run
+Create a `.env` file in this directory. The mock provider runs without credentials:
 
-```bash
+```env
+LLM_PROVIDER=mock
+```
+
+For OpenAI or Groq, set `LLM_PROVIDER` to `openai` or `groq` and provide the matching `OPENAI_API_KEY` or `GROQ_API_KEY`. MongoDB conversation persistence is optional; configure `MONGO_URI` to enable it.
+
+Start the API from this directory:
+
+```powershell
 uvicorn app.main:app --reload --port 8000
 ```
 
-- API: http://localhost:8000
-- Docs: http://localhost:8000/docs
-- Health: http://localhost:8000/health
+- API: `http://localhost:8000`
+- Interactive API docs: `http://localhost:8000/docs`
+- Health check: `http://localhost:8000/health`
 
-## LLM Providers
-
-| Provider | `LLM_PROVIDER` | Model |
-|----------|----------------|-------|
-| Mock (default) | `mock` | N/A |
-| OpenAI | `openai` | gpt-4o |
-| Groq | `groq` | llama3-70b-8192 |
-
-## API Endpoints
+## Endpoints
 
 | Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/chat` | Send message, get AI reply |
-| `GET` | `/health` | Health check |
-
-### POST /api/chat
-
-```json
-{
-  "message": "Hello!",
-  "history": [],
-  "conversation_id": "optional-id"
-}
-```
-
-Response:
-
-```json
-{
-  "reply": "Hello! How can I help you?",
-  "conversation_id": "uuid"
-}
-```
+| --- | --- | --- |
+| `POST` | `/api/chat` | Get an assistant response |
+| `POST` | `/api/chat/stream` | Stream an assistant response over SSE |
+| `GET` | `/api/conversations` | List saved conversations |
+| `GET` | `/api/conversations/{conversation_id}` | Get conversation messages |
+| `DELETE` | `/api/conversations/{conversation_id}` | Delete a conversation |
+| `GET` | `/health` | Health and provider configuration |
